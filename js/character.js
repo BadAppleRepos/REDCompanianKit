@@ -999,6 +999,7 @@ CPR.characters = (function () {
       </div>
       ${lp.length ? `<h4>Lifepath</h4><table>${lp.map(([k, l]) => `<tr><td style="width:35%">${esc(l)}</td><td>${esc(c.lifepath[k])}</td></tr>`).join('')}</table>` : ''}
       ${c.notes ? `<h4>Notes</h4><div style="white-space:pre-wrap">${esc(c.notes)}</div>` : ''}
+      <div class="legal-line">Made with RED Kit. RED Kit is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.</div>
     </div>`;
   }
 
@@ -1022,6 +1023,7 @@ CPR.characters = (function () {
     L.push('', `Eurobucks ${c.money} | IP ${c.ip} | Reputation ${c.reputation}`);
     D.LIFEPATH_FIELDS.filter(([k]) => c.lifepath[k]).forEach(([k, l], i) => { if (!i) L.push('', 'LIFEPATH'); L.push(`  ${l}: ${c.lifepath[k]}`); });
     if (c.notes) L.push('', 'NOTES', c.notes);
+    L.push('', '— Made with RED Kit. RED Kit is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.');
     return L.join('\n');
   }
 

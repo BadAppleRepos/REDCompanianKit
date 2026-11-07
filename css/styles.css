@@ -43,7 +43,8 @@ a { color: var(--cyan); }
   box-shadow: 0 0 18px rgba(255, 42, 61, .15);
 }
 .brand { display: flex; align-items: baseline; gap: 4px; font-weight: 900; letter-spacing: .08em; user-select: none; }
-.brand-mark { background: var(--red); color: #000; padding: 1px 6px; transform: skewX(-12deg); display: inline-block; }
+.brand-mark { color: var(--cyan); }
+.brand { font-family: var(--mono); font-size: 17px; }
 .brand-text { color: var(--text); }
 .mainnav { display: flex; gap: 4px; margin-left: auto; }
 .mainnav button {
@@ -657,10 +658,17 @@ body:not([data-view="characters"]) .roll-fab, body:not([data-view="characters"])
 .install-btn { margin-left: 8px; }
 @media (max-width: 760px) { .install-btn { position: absolute; right: 12px; } }
 
+/* ---------- legal footer ---------- */
+.legal { max-width: 1400px; margin: 0 auto; padding: 8px 16px calc(16px + var(--nav-h) + var(--safe-b)); }
+.legal p { margin: 0; font-size: 11px; line-height: 1.4; color: var(--muted); opacity: .8; text-align: center; }
+@media (min-width: 761px) { .legal { padding-bottom: 16px; } }
+body[data-view="map"] .legal { display: none; }
+.sheet .legal-line { margin-top: 14px; font-size: 9px; color: #666; }
+
 /* ---------- print ---------- */
 @media print {
   body { background: #fff; }
-  .topbar, .mainnav, .editor-head, .tabs, .derived-bar, .no-print, .toast { display: none !important; }
+  .topbar, .mainnav, .editor-head, .tabs, .derived-bar, .no-print, .toast, .legal { display: none !important; }
   main { padding: 0; max-width: none; }
   .sheet { border-radius: 0; padding: 0; }
   .view:not(.active) { display: none !important; }

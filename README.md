@@ -1,6 +1,8 @@
-# RED Kit — Cyberpunk RED companion app
+# RED Kit
 
-An installable web app (PWA) for Cyberpunk RED. It runs on Windows, iPhone and Android from the same code, works offline, and keeps all data on the device.
+*A free companion app for use with Cyberpunk RED.*
+
+An installable web app (PWA) for use with Cyberpunk RED. It runs on Windows, iPhone and Android from the same code, works offline, and keeps all data on the device.
 
 ## Features
 
@@ -86,4 +88,8 @@ js/app.js             navigation + service worker registration
 sw.js, manifest.webmanifest, icons/   installable-app (PWA) support
 ```
 
-*Cyberpunk RED is a trademark of R. Talsorian Games. This is an unofficial fan tool and includes no rulebook text.*
+## Legal
+
+RED Kit is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.
+
+RED Kit is free and always will be. It contains no text, art or logos from R. Talsorian Games products: cyberware and rule descriptions are short summaries written for this app. Fonts: Rajdhani (SIL Open Font License, via Google Fonts). Icons were made for this project.
