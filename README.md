@@ -1,0 +1,89 @@
+# RED Kit — Cyberpunk RED companion app
+
+An installable web app (PWA) for Cyberpunk RED. It runs on Windows, iPhone and Android from the same code, works offline, and keeps all data on the device.
+
+## Features
+
+**Character builder**
+- Handle, role and role ability rank, all 10 stats, and every core skill grouped by category. Includes the basic-skill minimums, x2 skill costs and custom skills (languages, Local Expert, Martial Arts forms…).
+- Optional *Complete Package* checks: 62 stat points (2–8 each) and 86 skill points (max 6).
+- Derived values update as you edit: HP, Seriously Wounded, Death Save, Humanity, current EMP and armor SP.
+- **Ripperdoc view** for cyberware, styled after the video game's cyberware screen. A body scan sits in the middle with body systems around it. Slot tiles are color-coded by Humanity cost, and the Humanity bar is drawn as EMP blocks. Tap a slot to open a shop panel with a full description, effects, cost, Humanity Loss and slot use for each piece. You can pay from your eurobucks and replace or remove chrome, and pieces that can't be combined are blocked. Toggle to the **List / dropdowns** view any time.
+- **Cyberware by body part, picked from dropdowns**: neuralware, chipware, each eye, ears, each arm, each leg, internal, external, fashionware and borgware. A foundation (Neural Link, Cybereye, Cyberarm…) unlocks its option slots. Slot use is tracked, and options that don't fit are greyed out. Humanity Loss uses the average by default; you can roll it (🎲) or type your own number. A **Custom…** entry is available everywhere.
+- Weapons, armor (with SP ablation), gear, money, IP, reputation, lifepath and notes.
+- **Export**: a `.json` character file (re-importable on any device), Print / Save as PDF, plain text, or copy to clipboard.
+
+**Rolling from the character sheet (Play tab)**
+- Characters open on a table-ready **Play** tab. Tap a stat, skill or weapon to roll it. Checks are STAT + Skill + 1d10, where a 10 rolls again and adds and a 1 rolls again and subtracts.
+- Weapons have **Hit** and **Damage** buttons. Two or more 6s on damage is flagged as a Critical Injury. Guns track ammo and have a Reload button, and Autofire weapons get an Autofire roll that uses 10 rounds. Brawling damage is set by BODY.
+- **Initiative** includes Kerenzikov. **Death Save** tracks the rising penalty while Mortally Wounded.
+- Damage/Heal buttons adjust HP. Armor SP can be worn down 1 point at a time.
+- Penalties apply automatically: Seriously Wounded −2 (cancelled by a Pain Editor), Mortally Wounded −4, and heavy-armor penalties on REF and DEX.
+- The floating **🎲 dice tray** shows each result with its math and has a situational modifier and roll history.
+- If the character is in the combat tracker, initiative updates their spot, HP stays in sync, and every roll appears in the GM's combat log.
+
+**Homebrew cyberware (GM)**
+- The **Homebrew** page lets the GM design custom chrome. Each piece has a name, description, effect tags, cost, Humanity Loss (average and dice), slots used, playstyle, and the slot types it fits in (one or more).
+- Optional **roll bonuses**: initiative, armor SP, stat bonuses and skill bonuses. These are added to Play-tab rolls (with the source named in the breakdown) and to combat-tracker initiative.
+- Homebrew pieces appear marked with ★ in every character's Ripperdoc and dropdowns. A live preview shows how players will see them.
+- **Sharing:** *Export library* (or ⇩ for a single piece) and players *Import* the file. Each installed piece also stores a copy inside the character, so an exported character works on any device. Importing that character adds the piece to the importing device's library.
+
+**Edgerunners Mission Kit support**
+- **Built-in cyberware:** Gorilla Arms, Mantis Blades and Monowire are standard Cyberarm options in the Ripperdoc and dropdowns. When their numbers are filled in, they get Hit and Damage buttons on the Play tab automatically, as the core blades (Wolvers, Rippers…) already do.
+- **Built-in quickhacks:** Short Circuit, Cripple Movement and Reboot.
+- **Weapon types:** Power, Tech and Smart, set on the Gear tab. The GM writes each type's rule on the Homebrew page, and it's shown on that weapon's rolls.
+- **Fill in the numbers once:** the Mission Kit's costs, Humanity Loss, slots, damage and quickhack DVs aren't published anywhere public. They go in **one table at the top of [`js/data.js`](js/data.js)** (`MISSION_KIT_CYBERWARE` and `MISSION_KIT_QUICKHACKS`). Until then the app marks them "⚠ Mission Kit values not entered", and nothing is guessed.
+
+**Quickhacks tab**
+- Every character has a **⌁ Quickhacks** tab. It shows their Interface rank and whether they have Interface Plugs. Players **Learn** quickhacks from the available list (built-in plus any the GM made) and roll them with **Hack** and **Dmg** buttons.
+
+**Weapon damage Override & Modifier**
+- On the Gear tab, **Override** replaces a weapon's base damage dice (e.g. a 3d6 pistol rolled as 4d6). **Modifier** adds a flat amount to every damage roll (+2, −1…).
+- The Play tab shows the result (e.g. `DMG* 4d6+2`, where * means overridden). The roll breakdown lists the modifier and notes the base damage.
+
+**GM tools**
+- **Combat tracker**: initiative (REF + 1d10, plus Kerenzikov), turn and round order, damage with armor (head ×2, ½ SP for melee, +5 crit injury, SP ablation), wound states, death saves, heal, conditions and a combat log. Player HP syncs back to the character sheet.
+- **Maps**: **square or hex grid** (switchable), terrain painting (brush or rectangle), tokens (or place everyone from the combat tracker, with HP bars), measuring in cells and meters (2m per cell), fog of war with a player view, background image upload, undo, and PNG / map-file export.
+- **Dice roller**: skill checks with exploding/imploding d10 against a DV, and damage dice that flag critical injuries.
+
+## Running it
+
+### Install it like an app (Windows, Android, iPhone)
+Once it's hosted (GitHub Pages, see below), an **⇩ Install** button appears in the top bar:
+- **Windows (Edge / Chrome) and Android (Chrome):** click **Install**. RED Kit gets its own window, a Start-menu / home-screen icon, and works offline.
+- **iPhone / iPad (Safari):** tap **Install** for the steps: Share → **Add to Home Screen**.
+
+You can also open `index.html` directly on a PC with no install. Everything works, but there's no offline install.
+
+### Hosting on GitHub Pages
+All the files are static, so there's no build step. Push this folder to a GitHub repository, then go to **Settings → Pages**, choose **Deploy from a branch**, select `main` and `/ (root)`, and save. The app is then at `https://<your-username>.github.io/<repo-name>/`.
+After changing files, bump `VERSION` in `sw.js` so installed copies pick up the update.
+
+### Local server (testing on your network)
+```bash
+python -m http.server 8642
+```
+Then open `http://localhost:8642` on the PC. Phones on the same Wi-Fi can use `http://<your-PC-IP>:8642`. Offline caching only works over HTTPS or on localhost, but the app itself runs fine over LAN.
+
+## Data & backups
+Everything is saved in the browser's local storage **on that device**. Each device or browser keeps its own copy. To move or back up characters, use **Export** (or *Export all*) and **Import**. Maps export as `.redmap.json`.
+
+## Editing game data
+All rules data — skills, cyberware (cost / Humanity Loss / slots), weapons, armor, NPC templates and terrain — lives in [`js/data.js`](js/data.js). The values follow the core rulebook from memory, so check them against your book and edit freely. After changing files on a hosted copy, bump `VERSION` in `sw.js` so installed apps pick up the update.
+
+## Project layout
+```
+index.html            app shell
+css/styles.css        theme + responsive layout
+js/data.js            game data (edit me)
+js/store.js           local storage
+js/ui.js              modal, toast, file save/load, dice
+js/character.js       character builder + export
+js/combat.js          combat tracker
+js/map.js             grid map editor
+js/dice.js            dice roller
+js/app.js             navigation + service worker registration
+sw.js, manifest.webmanifest, icons/   installable-app (PWA) support
+```
+
+*Cyberpunk RED is a trademark of R. Talsorian Games. This is an unofficial fan tool and includes no rulebook text.*
