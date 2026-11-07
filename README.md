@@ -1,6 +1,9 @@
+# Intro
+Hi this was created with the intention of just a few friends and I using it as a first time Cyberpunk RED player. Not intended as a commercial product. It is more a rough prototype or a proof of concept rather than an End-To-End App.
+
 # RED Kit
 
-*A free companion app for use with Cyberpunk RED.*
+*A companion app for use with Cyberpunk RED.*
 
 An installable web app (PWA) for use with Cyberpunk RED. It runs on Windows, iPhone and Android from the same code, works offline, and keeps all data on the device.
 
