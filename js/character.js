@@ -61,6 +61,9 @@ CPR.characters = (function () {
     const entry = e => {
       if (!e || typeof e !== 'object' || typeof e.id !== 'string') return null;
       const out = { id: e.id, hl: e.hl == null ? null : num(e.hl) };
+      // Installed while its Mission Kit Humanity Loss was a 0 placeholder: follow the table now.
+      const it = D.cyberById[e.id];
+      if (it && it.source === D.MISSION_KIT_SOURCE && out.hl === 0 && it.hl > 0) out.hl = null;
       if (e.id === 'custom') Object.assign(out, { name: str(e.name), cost: num(e.cost), slots: num(e.slots, 1) });
       if (e.hb && typeof e.hb === 'object') out.hb = CPR.cyber.normalize(e.hb);
       return out;
@@ -165,11 +168,25 @@ CPR.characters = (function () {
     });
     const initBonus = mods.initParts.reduce((a, p) => a + p.v, 0);
 
-    const skinSp = Math.max(0, ...cyber.map(x => x.entry.id === 'subdermal_armor' ? 11 : x.entry.id === 'skin_weave' ? 7 : (x.info.mods && x.info.mods.sp) || 0));
+    // Cyberware that sets BODY for Choke, Slam and strength feats (Gorilla Arms): highest one wins.
+    let brawlBody = st.BODY || 0, brawlBodySource = '';
+    cyber.forEach(x => { if (x.info.body && x.info.body > brawlBody) { brawlBody = x.info.body; brawlBodySource = x.info.name; } });
+    // Paired arm cyberware: count arms that have it; pair-only effects need both.
+    const pairs = {};
+    ['armL', 'armR'].forEach(zid => cyber.filter(x => x.zone.id === zid && x.info.pair)
+      .forEach(x => { (pairs[x.entry.id] = pairs[x.entry.id] || { info: x.info, arms: new Set() }).arms.add(zid); }));
+    const fullPairs = [];
+    Object.values(pairs).forEach(p => {
+      if (p.arms.size < 2) warnings.push(`${p.info.name} is only in one arm; install it in both for the pair effects`);
+      else fullPairs.push(p.info);
+    });
+
+    const skinSp =Math.max(0, ...cyber.map(x => x.entry.id === 'subdermal_armor' ? 11 : x.entry.id === 'skin_weave' ? 7 : (x.info.mods && x.info.mods.sp) || 0));
     const role = D.ROLES.find(r => r.id === c.role) || D.ROLES[0];
     return {
       hpMax, hp, seriously: Math.ceil(hpMax / 2), deathSave: (st.BODY || 0) + (Number(c.deathSaveBonus) || 0),
       humanityMax, humanity, empCur, hlCyber, cyberCost, statTotal, skillTotal, warnings, cyber, skinSp, role, mods, initBonus,
+      brawlBody, brawlBodySource, fullPairs,
       walk: st.MOVE * 2, run: st.MOVE * 6,
     };
   }
@@ -384,7 +401,9 @@ CPR.characters = (function () {
     return { dice, bonus, over: !!over, label: dice + (bonus ? (bonus > 0 ? '+' : '−') + Math.abs(bonus) : '') };
   }
   // Installed cyberware that works as a weapon (built-in blades and homebrew with damage set).
-  const cyberWeaponsOf = d => d.cyber.filter(x => x.info.weapon && x.info.weapon.damage).map(x => ({ ...x, w: x.info.weapon }));
+  // Paired arm pieces (Gorilla Arms) are listed once, not once per arm.
+  const onePerPair = list => { const seen = new Set(); return list.filter(x => !x.info.pair || (!seen.has(x.entry.id) && seen.add(x.entry.id))); };
+  const cyberWeaponsOf = d => onePerPair(d.cyber.filter(x => x.info.weapon && x.info.weapon.damage)).map(x => ({ ...x, w: x.info.weapon }));
   // Character's quickhacks: the GM's latest version if this device has it, otherwise the saved copy.
   const quickhacksOf = c => (c.quickhacks || []).map(s => CPR.quickhacks.get(s.id) || CPR.quickhacks.normalize(s));
   const interfaceRank = c => (c.role === 'netrunner' ? Number(c.roleRank) || 0 : 0);
@@ -459,7 +478,8 @@ CPR.characters = (function () {
     const weapons = c.weapons.map((w, i) => ({ w, i }));
     const cyberWeapons = cyberWeaponsOf(d);
     const fxOf =x => (x.info.fx || []).concat(CPR.ripperdoc.modTags(x.info.mods));
-    const fxList = d.cyber.filter(x => fxOf(x).length && x.info.cat !== 'foundation');
+    const fxList = onePerPair(d.cyber.filter(x => fxOf(x).length && x.info.cat !== 'foundation'));
+    const pairFx = d.fullPairs.filter(p => p.pairFx && p.pairFx.length);
 
     return `<div class="play">
       <div class="play-vitals">
@@ -528,7 +548,7 @@ CPR.characters = (function () {
               <button class="roll-btn dmg" data-roll="cwdmg:${i}"><small>DMG</small>${esc(x.w.damage)}</button>
             </div></div>`).join('')}
           <div class="pw">
-            <div class="pw-name"><b>Brawling</b><small>Unarmed · BODY ${c.stats.BODY}</small></div>
+            <div class="pw-name"><b>Brawling</b><small>Unarmed · BODY ${c.stats.BODY}${d.brawlBodySource ? ` · Choke/Slam & strength: BODY ${d.brawlBody} (${esc(d.brawlBodySource)})` : ''}</small></div>
             <div class="pw-btns">
               <button class="roll-btn" data-roll="brawl-atk"><small>HIT</small>${signed(sum(skillParts(c, d, 'Brawling')))}</button>
               <button class="roll-btn dmg" data-roll="brawl-dmg"><small>DMG</small>${brawlDice(c.stats.BODY)}</button>
@@ -553,7 +573,8 @@ CPR.characters = (function () {
 
 
 
-      ${fxList.length ? `<div class="panel"><h3>Chrome Effects</h3><div class="play-fx">
+      ${fxList.length || pairFx.length ? `<div class="panel"><h3>Chrome Effects</h3><div class="play-fx">
+        ${pairFx.map(p => `<div><b>${esc(p.name)} (pair)</b>${p.pairFx.map(f => `<span class="pair">${esc(f)}</span>`).join('')}</div>`).join('')}
         ${fxList.map(x => `<div><b>${x.info.homebrew ? "★ " : ""}${esc(x.info.name)}</b>${fxOf(x).map(f => `<span>${esc(f)}</span>`).join('')}</div>`).join('')}</div></div>` : ''}
       <p class="muted small">Tap any stat, skill or weapon to roll. Checks are STAT + Skill + 1d10: a 10 rolls again and adds, a 1 rolls again and subtracts.
         Use the 🎲 button for a situational modifier and your roll history.</p>
@@ -739,7 +760,8 @@ CPR.characters = (function () {
   /* ----- cyberware ----- */
   function optionLabel(item) {
     const slots = item.slots == null ? 1 : item.slots;
-    if (item.unset) return `${item.name} — Mission Kit (values not entered)`;
+    if (item.unset && item.missing.includes('cost')) return `${item.name} — Mission Kit (needs ${item.missing.join(', ')})`;
+    if (item.unset) return `${item.name} — ${item.cost.toLocaleString()}eb, HL ${item.hl} (needs ${item.missing.join(', ')})`;
     return `${item.homebrew ? '★ ' : ''}${item.name} — ${item.cost.toLocaleString()}eb, HL ${item.hl}${item.cat !== 'foundation' && item.cat !== 'chip' && slots !== 1 ? `, ${slots} slots` : ''}`;
   }
 
@@ -786,11 +808,14 @@ CPR.characters = (function () {
   /* Install / remove helpers shared by both cyberware views. */
   function setFoundation(c, zid, id) {
     const z = zoneState(c, zid);
-    if (id) { z.foundation = { id, hl: D.cyberById[id].hl }; return; }
+    if (id) { z.foundation = { id, hl: defaultHl(D.cyberById[id]) }; return; }
     if (z.options.length) U.toast('Options in that body part were removed too');
     z.foundation = null; z.options = [];
     if (zid === 'neural') zoneState(c, 'chips').options = [];
   }
+
+  // Humanity Loss saved on install. null = follow the table, so values entered later still apply.
+  const defaultHl = item => (item.missing && item.missing.includes('Humanity Loss') ? null : item.hl);
 
   // id: item id, 'custom', or null to remove. Pass a custom entry object as `custom`.
   function setOption(c, zid, i, id, custom) {
@@ -799,7 +824,7 @@ CPR.characters = (function () {
     else if (id === 'custom') z.options[i] = custom || { id: 'custom', name: '', cost: 0, hl: 0, slots: 1 };
     else {
       const item = CPR.cyber.get(id);
-      z.options[i] = { id, hl: item.hl };
+      z.options[i] = { id, hl: defaultHl(item) };
       if (item.homebrew) z.options[i].hb = CPR.cyber.snapshot(id); // travels with the character file
     }
     // Removing a Chipware Socket drops chips that no longer have a socket.

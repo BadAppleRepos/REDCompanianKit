@@ -177,12 +177,15 @@ CPR.ripperdoc = (function () {
     const slots = item.slots == null ? 1 : item.slots;
     const zone = opts.zone;
     const w = item.homebrew && item.weapon;
+    const missing = item.missing || [];
+    const hlMissing = missing.includes('Humanity Loss');
     const mods = (w ? [`⚔ ${w.damage} ${w.skill}${w.wtype ? ' · ' + w.wtype.toUpperCase() : ''}`] : []).concat(modTags(item.mods));
     return `<div class="rd-dhead t${t.n}">${icon(item.id === 'custom' ? 'custom' : ZONE_ICON[zone.id], 40)}
         <div><div class="rd-dname">${item.homebrew ? '★ ' : ''}${esc(item.name || 'Custom cyberware')}</div>
         <div class="rd-dsub">${esc(CAT_NAME[item.cat] || 'Custom')} · ${esc(item.kind || 'Custom')}${item.homebrew ? ' · GM homebrew' : ''}${item.source && !item.homebrew ? ' · ' + esc(item.source) : ''}</div></div></div>
-      <div class="rd-tierline t${item.unset ? 4 : t.n}">${item.unset ? 'Humanity cost not entered' : t.label}</div>
-      ${item.unset ? '<div class="rd-unset">⚠ Mission Kit values not entered. Cost, Humanity Loss, slots and damage are placeholders until they are added to the table at the top of <code>js/data.js</code>. After installing, you can still set Humanity Loss for this character.</div>' : ''}
+      <div class="rd-tierline t${hlMissing ? 4 : t.n}">${hlMissing ? 'Humanity cost not entered' : t.label}</div>
+      ${item.unset ? `<div class="rd-unset">⚠ Mission Kit value${missing.length === 1 ? '' : 's'} not entered yet: <b>${esc(missing.join(', '))}</b>. Add ${missing.length === 1 ? 'it' : 'them'} to the table at the top of <code>js/data.js</code>${missing.includes('slots') ? ' (until then it uses 1 slot)' : ''}.</div>` : ''}
+      ${item.pairFx && item.pairFx.length ? `<div class="rd-fx"><span class="pairlbl">With a pair:</span>${item.pairFx.map(f => `<span class="pair">${esc(f)}</span>`).join('')}</div>` : ''}
       <div class="rd-stats">
         <div><small>COST</small><b>${Number(item.cost || 0).toLocaleString()}eb</b></div>
         <div><small>HUMANITY LOSS</small><b>${item.hl}</b>${item.hlDice && item.hlDice !== '0' ? `<em>or roll ${esc(item.hlDice)}</em>` : ''}</div>
@@ -223,7 +226,7 @@ CPR.ripperdoc = (function () {
               const t = tier(i.hl), ok = fits(i);
               return `<button class="rd-card t${t.n}" data-pick="${i.id}" ${ok ? '' : 'disabled'}>
                 ${icon(ZONE_ICON[zone.id], 22)}
-                <span class="rd-cname"><b>${i.homebrew ? '★ ' : ''}${esc(i.name)}</b><small>${i.homebrew ? 'Homebrew · ' : ''}${i.source && !i.homebrew ? 'Mission Kit · ' : ''}${i.unset ? '⚠ values needed · ' : ''}${esc(i.kind)}${(i.slots || 1) > 1 ? ` · ${i.slots} slots` : ''}${!ok ? why(i) : owned.has(i.id) ? ' · owned' : ''}</small></span>
+                <span class="rd-cname"><b>${i.homebrew ? '★ ' : ''}${esc(i.name)}</b><small>${i.homebrew ? 'Homebrew · ' : ''}${i.source && !i.homebrew ? 'Mission Kit · ' : ''}${i.unset ? `⚠ needs ${esc(i.missing.join(', '))} · ` : ''}${esc(i.kind)}${(i.slots || 1) > 1 ? ` · ${i.slots} slots` : ''}${!ok ? why(i) : owned.has(i.id) ? ' · owned' : ''}</small></span>
                 <span class="rd-cprice">${i.cost.toLocaleString()}<small>eb</small><em>HL ${i.hl}</em></span></button>`;
             }).join('')}
             ${isFound ? '' : `<button class="rd-card t0" data-pick="custom">${icon('custom', 22)}<span class="rd-cname"><b>Custom cyberware</b><small>Homebrew or from a sourcebook</small></span><span class="rd-cprice">—</span></button>`}

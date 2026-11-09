@@ -574,7 +574,9 @@ body:not([data-view="characters"]) .roll-fab, body:not([data-view="characters"])
 .rd-dname { font-size: 24px; font-weight: 700; color: var(--text); letter-spacing: .04em; text-transform: uppercase; line-height: 1.05; }
 .rd-dsub { color: var(--muted); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; }
 .rd-tierline { margin: 10px 0; padding: 3px 10px; color: #000; background: var(--tc); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 12px; clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
-.rd-unset { margin: -4px 0 10px; padding: 6px 10px; border: 1px solid rgba(255, 155, 42, .55); color: var(--orange); font: 13px/1.4 system-ui, sans-serif; }
+.rd-fx span.pair, .play-fx span.pair { border-color: rgba(61, 255, 154, .5); color: var(--green); }
+.rd-fx .pairlbl { border: 0 !important; color: var(--muted) !important; padding-left: 0 !important; }
+.rd-unset {margin: -4px 0 10px; padding: 6px 10px; border: 1px solid rgba(255, 155, 42, .55); color: var(--orange); font: 13px/1.4 system-ui, sans-serif; }
 .rd-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .rd-stats div { border: 1px solid #22283a; padding: 6px 8px; }
 .rd-stats small { display: block; color: var(--muted); font-size: 10px; letter-spacing: .12em; }

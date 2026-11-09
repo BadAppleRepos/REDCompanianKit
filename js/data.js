@@ -479,11 +479,15 @@ CPR.DATA.WEAPON_TYPES = [
  *
  *   cost: eb        hl: average Humanity Loss     hlDice: e.g. '2d6'     slots: option slots used
  *   damage: e.g. '3d6'    skill: attack skill     rof: rate of fire     fx: short effect tags
+ *   body: BODY counts as this for Choke, Slam and strength feats while installed
+ *   pair: true if it's meant to go in both arms (values above are per arm)
  */
 CPR.DATA.MISSION_KIT_SOURCE = 'Edgerunners Mission Kit';
 CPR.DATA.MISSION_KIT_CYBERWARE = [
-  { id: 'gorilla_arms', name: 'Gorilla Arms', cost: null, hl: null, hlDice: '', slots: null, damage: '', skill: 'Brawling', rof: 2, fx: [],
-    text: 'Heavily reinforced cyberarm actuators and knuckles built for crushing melee strikes and brute-force feats of strength.' },
+  { id: 'gorilla_arms', name: 'Gorilla Arms', cost: 500, hl: 7, hlDice: '2d6', slots: 2, damage: '3d6', body: 11, pair: true, skill: 'Brawling', rof: 2,
+    fx: ['3d6 damage', 'BODY counts as 11 for Choke, Slam & strength', 'Per arm: 500eb, 2d6 HL (4d6 for a pair)'],
+    pairFx: ['Force open doors', 'Move Thick Cover objects', 'Choke & Slam opponents'],
+    text: 'Heavily reinforced cyberarm actuators and knuckles built for crushing melee strikes and brute-force feats of strength. Strikes with them deal 3d6 damage, and while installed your BODY counts as 11 for Choke, Slam and feats of strength. With a pair installed, you can force open doors, move Thick Cover objects, and Choke and Slam opponents.' },
   { id: 'mantis_blades', name: 'Mantis Blades', cost: null, hl: null, hlDice: '', slots: null, damage: '', skill: 'Melee Weapon', rof: 2, fx: [],
     text: 'Long blades that unfold from the forearm of a cyberarm and lock into place for slashing attacks.' },
   { id: 'monowire', name: 'Monowire', cost: null, hl: null, hlDice: '', slots: null, damage: '', skill: 'Melee Weapon', rof: 1, fx: [],
@@ -499,10 +503,16 @@ CPR.DATA.MISSION_KIT_QUICKHACKS = [
 
 // Turn the Mission Kit table into regular built-in cyberware (Cyberarm options).
 CPR.DATA.MISSION_KIT_CYBERWARE.forEach(m => {
-  const unset = m.cost == null || m.hl == null || m.slots == null || !m.damage;
+  // Which book values are still empty (pieces with a `body` rule don't need their own damage).
+  const missing = [];
+  if (m.cost == null) missing.push('cost');
+  if (m.hl == null) missing.push('Humanity Loss');
+  if (m.slots == null) missing.push('slots');
+  if (!m.damage) missing.push('damage');
   CPR.DATA.CYBERWARE.push({
     id: m.id, cat: 'arm', name: m.name, cost: Number(m.cost) || 0, hl: Number(m.hl) || 0, hlDice: m.hlDice || '',
-    slots: m.slots == null ? 1 : Number(m.slots), desc: m.text, source: CPR.DATA.MISSION_KIT_SOURCE, unset,
+    slots: m.slots == null ? 1 : Number(m.slots), desc: m.text, source: CPR.DATA.MISSION_KIT_SOURCE,
+    unset: missing.length > 0, missing, body: m.body || null, pair: !!m.pair, pairFx: m.pairFx || [],
   });
   CPR.DATA.CYBER_INFO[m.id] = { fx: m.fx || [], text: m.text };
   if (m.damage) CPR.DATA.CYBER_WEAPONS[m.id] = { damage: m.damage, skill: m.skill, rof: m.rof };

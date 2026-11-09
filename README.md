@@ -37,7 +37,9 @@ An installable web app (PWA) for use with Cyberpunk RED. It runs on Windows, iPh
 - **Built-in cyberware:** Gorilla Arms, Mantis Blades and Monowire are standard Cyberarm options in the Ripperdoc and dropdowns. When their numbers are filled in, they get Hit and Damage buttons on the Play tab automatically, as the core blades (Wolvers, Rippers…) already do.
 - **Built-in quickhacks:** Short Circuit, Cripple Movement and Reboot.
 - **Weapon types:** Power, Tech and Smart, set on the Gear tab. The GM writes each type's rule on the Homebrew page, and it's shown on that weapon's rolls.
-- **Fill in the numbers once:** the Mission Kit's costs, Humanity Loss, slots, damage and quickhack DVs aren't published anywhere public. They go in **one table at the top of [`js/data.js`](js/data.js)** (`MISSION_KIT_CYBERWARE` and `MISSION_KIT_QUICKHACKS`). Until then the app marks them "⚠ Mission Kit values not entered", and nothing is guessed.
+- **Fill in the numbers once:** Mission Kit values go in **one table at the top of [`js/data.js`](js/data.js)** (`MISSION_KIT_CYBERWARE` and `MISSION_KIT_QUICKHACKS`). Anything still empty is flagged in the app with exactly what's missing, and nothing is guessed.
+  - **Gorilla Arms** (complete): 500eb, 2d6 Humanity Loss and 2 option slots per arm (4d6 for a pair), 3d6 damage (Brawling), BODY counts as 11 for Choke, Slam and strength. A pair lets you force open doors, move Thick Cover objects, and Choke and Slam opponents.
+  - **Mantis Blades, Monowire** and the three quickhacks: not entered yet.
 
 **Quickhacks tab**
 - Every character has a **⌁ Quickhacks** tab. It shows their Interface rank and whether they have Interface Plugs. Players **Learn** quickhacks from the available list (built-in plus any the GM made) and roll them with **Hack** and **Dmg** buttons.
