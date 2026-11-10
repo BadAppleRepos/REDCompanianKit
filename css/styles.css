@@ -660,6 +660,16 @@ body:not([data-view="characters"]) .roll-fab, body:not([data-view="characters"])
 .install-btn { margin-left: 8px; }
 @media (max-width: 760px) { .install-btn { position: absolute; right: 12px; } }
 
+/* ---------- gear value ---------- */
+.gear-value { width: 100%; border-collapse: collapse; margin: 10px 0 6px; font-size: 14px; }
+.gear-value td { padding: 3px 0; border-bottom: 1px solid var(--line); }
+.gear-value td:last-child { text-align: right; font-family: var(--mono); color: var(--yellow); }
+.gear-value tr.total td { border-bottom: 0; font-weight: 800; padding-top: 6px; }
+@media (max-width: 760px) {
+  .armor-row { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .armor-row > label:first-child { grid-column: 1 / -1; }
+}
+
 /* ---------- legal footer ---------- */
 .legal { max-width: 1400px; margin: 0 auto; padding: 8px 16px calc(16px + var(--nav-h) + var(--safe-b)); }
 .legal p { margin: 0; font-size: 11px; line-height: 1.4; color: var(--muted); opacity: .8; text-align: center; }

@@ -45,7 +45,10 @@ CPR.characters = (function () {
     if (c.creationMode !== 'free') c.creationMode = 'package';
     const statId = v => (D.STATS.some(s => s.id === v) ? v : 'INT');
     c.customSkills = arr(c.customSkills).map(s => ({ name: str(s.name), stat: statId(s.stat), level: num(s.level), x2: !!s.x2 }));
+    // Older saves have no cost: fill the base price when the name matches a standard weapon / armor.
+    const basePrice = (list, name) => (list.find(x => x.name === name) || {}).cost || 0;
     c.weapons = arr(c.weapons).map(w => ({
+      cost: w.cost == null ? basePrice(D.WEAPONS, w.name) : num(w.cost),
       name: str(w.name), skill: str(w.skill) || 'Handgun', damage: str(w.damage), rof: num(w.rof, 1), mag: num(w.mag),
       ammo: w.ammo == null ? null : num(w.ammo), notes: str(w.notes), dmgOverride: str(w.dmgOverride), dmgMod: num(w.dmgMod),
       wtype: D.WEAPON_TYPES.some(t => t.id === w.wtype) ? w.wtype : '',
@@ -54,7 +57,8 @@ CPR.characters = (function () {
     c.armor = obj(c.armor);
     ['head', 'body'].forEach(l => {
       const a = obj(c.armor[l] || b.armor[l]);
-      c.armor[l] = { name: str(a.name) || 'None', sp: num(a.sp), spCurrent: num(a.spCurrent) };
+      const name = str(a.name) || 'None';
+      c.armor[l] = { name, sp: num(a.sp), spCurrent: num(a.spCurrent), cost: a.cost == null ? basePrice(D.ARMOR, name) : num(a.cost) };
     });
     c.cyber = obj(c.cyber);
     const zones = obj(c.cyber.zones), clean = {};
@@ -901,11 +905,13 @@ CPR.characters = (function () {
   function armorSelect(loc, c) {
     const a = c.armor[loc];
     const known = D.ARMOR.some(x => x.name === a.name);
-    return `<select data-armor="${loc}">${D.ARMOR.map(x => `<option ${x.name === a.name ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}
+    return `<select data-armor="${loc}">${D.ARMOR.map(x => `<option value="${esc(x.name)}" ${x.name === a.name ? 'selected' : ''}>${esc(x.name)}${x.sp ? ` — SP ${x.sp}, ${x.cost.toLocaleString()}eb` : ''}</option>`).join('')}
       <option value="__custom" ${known ? '' : 'selected'}>Custom…</option></select>`;
   }
 
   function tabGear(c, d) {
+    const weaponCost = c.weapons.reduce((a, w) => a + (Number(w.cost) || 0), 0);
+    const armorCost = (Number(c.armor.head.cost) || 0) + (Number(c.armor.body.cost) || 0);
     return `<div class="grid cols-2">
       <div class="panel">
         <h3>Armor</h3>
@@ -913,10 +919,11 @@ CPR.characters = (function () {
           const a = c.armor[loc];
           const known = D.ARMOR.some(x => x.name === a.name);
           const pen = (D.ARMOR.find(x => x.name === a.name) || {}).penalty || 0;
-          return `<div class="grid" style="grid-template-columns:1fr 80px 80px;gap:6px;margin-bottom:8px;align-items:end">
+          return `<div class="grid armor-row" style="grid-template-columns:minmax(0,1fr) 64px 72px 80px;gap:6px;margin-bottom:8px;align-items:end">
             <label class="field">${loc === 'head' ? 'Head' : 'Body'}${armorSelect(loc, c)}</label>
             <label class="field">SP<input type="number" data-bind="armor.${loc}.sp" value="${a.sp}"></label>
             <label class="field">Current<input type="number" data-bind="armor.${loc}.spCurrent" value="${a.spCurrent}"></label>
+            <label class="field">Cost (eb)<input type="number" min="0" data-bind="armor.${loc}.cost" value="${a.cost || 0}"></label>
             ${!known ? `<input data-bind="armor.${loc}.name" value="${esc(a.name)}" placeholder="Armor name" style="grid-column:1/-1">` : ''}
             ${pen ? `<div class="small" style="grid-column:1/-1;color:var(--orange)">−${pen} to REF, DEX and MOVE</div>` : ''}
           </div>`;
@@ -927,14 +934,20 @@ CPR.characters = (function () {
       <div class="panel">
         <h3>Money</h3>
         <label class="field">Eurobucks<input type="number" data-bind="money" value="${c.money}"></label>
-        <p class="muted small">Complete Package starting funds: ${R.startingMoney.toLocaleString()}eb for weapons, armor, cyberware & gear.
-          Chrome installed: <b data-d="cyberCost"></b>eb.</p>
+        <label class="check small" style="margin-top:8px"><input type="checkbox" id="pay-gear" ${S.read('ui.payChrome', false) ? 'checked' : ''}> Pay from eurobucks when buying weapons, armor & chrome</label>
+        <table class="gear-value">
+          <tr><td>Weapons</td><td>${weaponCost.toLocaleString()}eb</td></tr>
+          <tr><td>Armor</td><td>${armorCost.toLocaleString()}eb</td></tr>
+          <tr><td>Cyberware</td><td><span data-d="cyberCost"></span>eb</td></tr>
+          <tr class="total"><td>Total value</td><td>${(weaponCost + armorCost + d.cyberCost).toLocaleString()}eb</td></tr>
+        </table>
+        <p class="muted small">Complete Package starting funds: ${R.startingMoney.toLocaleString()}eb for weapons, armor, cyberware & gear. Prices are for standard-quality items; edit a cost for anything better, worse or second-hand.</p>
       </div>
       <div class="panel" style="grid-column:1/-1">
         <div class="row"><h3 style="margin:0">Weapons</h3><span class="spacer"></span>
-          <select id="weapon-pick" style="max-width:220px"><option value="">+ Add weapon…</option>${D.WEAPONS.map((w, i) => `<option value="${i}">${esc(w.name)} (${w.damage})</option>`).join('')}<option value="custom">Custom weapon</option></select></div>
-        <div class="scroll-x"><table class="list-table" style="margin-top:8px;min-width:900px">
-          <tr><th>Name</th><th>Skill</th><th>Type</th><th>Dmg</th><th title="Replaces the base damage dice, e.g. 4d6">Override</th><th title="Flat amount added to the damage roll">Modifier</th><th>ROF</th><th>Mag</th><th>Base</th><th>Notes</th><th></th></tr>
+          <select id="weapon-pick" style="max-width:220px"><option value="">+ Add weapon…</option>${D.WEAPONS.map((w, i) => `<option value="${i}">${esc(w.name)} (${w.damage}, ${w.cost.toLocaleString()}eb)</option>`).join('')}<option value="custom">Custom weapon</option></select></div>
+        <div class="scroll-x"><table class="list-table" style="margin-top:8px;min-width:980px">
+          <tr><th>Name</th><th>Skill</th><th>Type</th><th>Dmg</th><th title="Replaces the base damage dice, e.g. 4d6">Override</th><th title="Flat amount added to the damage roll">Modifier</th><th>ROF</th><th>Mag</th><th title="Price paid (standard quality by default)">Cost</th><th>Base</th><th>Notes</th><th></th></tr>
           ${c.weapons.map((w, i) => {
             const sk = D.SKILLS.find(s => s.name === w.skill);
             const base = sk ? statFor(c, d, sk.stat) + (c.skills[sk.name] || 0) : '';
@@ -947,6 +960,7 @@ CPR.characters = (function () {
             <td style="width:70px"><input type="number" data-bind="weapons.${i}.dmgMod" value="${Number(w.dmgMod) || 0}" title="Flat amount added to the damage roll"></td>
             <td style="width:56px"><input type="number" data-bind="weapons.${i}.rof" value="${w.rof}"></td>
             <td style="width:64px"><input type="number" data-bind="weapons.${i}.mag" value="${w.mag}"></td>
+            <td style="width:76px"><input type="number" min="0" data-bind="weapons.${i}.cost" value="${Number(w.cost) || 0}"></td>
             <td style="width:46px" class="mono"><b style="color:var(--yellow)">${base}</b></td>
             <td><input data-bind="weapons.${i}.notes" value="${esc(w.notes || '')}"></td>
             <td style="width:40px"><button class="btn icon sm danger" data-a="del-weapon" data-i="${i}">×</button></td></tr>`;
@@ -1019,7 +1033,7 @@ CPR.characters = (function () {
           <h4>Gear</h4>
           <table>${c.gear.map(g => `<tr><td>${esc(g.name)}</td><td>×${g.qty}</td><td>${esc(g.notes || '')}</td></tr>`).join('') || '<tr><td>—</td></tr>'}</table>
           <h4>Resources</h4>
-          <table><tr><td>Eurobucks</td><td>${Number(c.money).toLocaleString()}eb</td></tr><tr><td>IP</td><td>${c.ip}</td></tr><tr><td>Reputation</td><td>${c.reputation}</td></tr></table>
+          <table><tr><td>Eurobucks</td><td>${Number(c.money).toLocaleString()}eb</td></tr><tr><td>Gear & chrome value</td><td>${gearValue(c, d).toLocaleString()}eb</td></tr><tr><td>IP</td><td>${c.ip}</td></tr><tr><td>Reputation</td><td>${c.reputation}</td></tr></table>
         </div>
       </div>
       ${lp.length ? `<h4>Lifepath</h4><table>${lp.map(([k, l]) => `<tr><td style="width:35%">${esc(l)}</td><td>${esc(c.lifepath[k])}</td></tr>`).join('')}</table>` : ''}
@@ -1027,6 +1041,9 @@ CPR.characters = (function () {
       <div class="legal-line">Made with RED Kit. RED Kit is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.</div>
     </div>`;
   }
+
+  const gearValue = (c, d) => c.weapons.reduce((a, w) => a + (Number(w.cost) || 0), 0)
+    + (Number(c.armor.head.cost) || 0) + (Number(c.armor.body.cost) || 0) + d.cyberCost;
 
   function sheetText(c, d) {
     const L = [];
@@ -1045,7 +1062,7 @@ CPR.characters = (function () {
     d.cyber.forEach(x => L.push(`  [${x.zone.label.split(' — ')[0]}] ${x.info.name} (HL ${x.info.hl})`));
     L.push('', 'GEAR');
     c.gear.forEach(g => L.push(`  ${g.name} x${g.qty}${g.notes ? ' — ' + g.notes : ''}`));
-    L.push('', `Eurobucks ${c.money} | IP ${c.ip} | Reputation ${c.reputation}`);
+    L.push('', `Eurobucks ${c.money} | Gear & chrome value ${gearValue(c, d)}eb | IP ${c.ip} | Reputation ${c.reputation}`);
     D.LIFEPATH_FIELDS.filter(([k]) => c.lifepath[k]).forEach(([k, l], i) => { if (!i) L.push('', 'LIFEPATH'); L.push(`  ${l}: ${c.lifepath[k]}`); });
     if (c.notes) L.push('', 'NOTES', c.notes);
     L.push('', '— Made with RED Kit. RED Kit is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.');
@@ -1095,6 +1112,14 @@ CPR.characters = (function () {
     }
   }
 
+  // Deduct a purchase from eurobucks when the "pay" option is on (shared with the Ripperdoc).
+  function pay(cost, name) {
+    if (!cost) return;
+    if (!S.read('ui.payChrome', false)) { U.toast(`${name} added (${cost.toLocaleString()}eb, not paid)`); return; }
+    current.money = (Number(current.money) || 0) - cost;
+    U.toast(`Bought ${name} for ${cost.toLocaleString()}eb${current.money < 0 ? ' (eurobucks now negative)' : ''}`);
+  }
+
   function onChange(e) {
     const t = e.target;
     if (!current) return;
@@ -1108,15 +1133,24 @@ CPR.characters = (function () {
       setOption(current, t.dataset.cw, +t.dataset.slot, t.value || null);
       saveNow(); return renderTab();
     }
+    if (t.id === 'pay-gear') { S.write('ui.payChrome', t.checked); return; }
     if (t.dataset.armor) {
       const loc = t.dataset.armor;
-      if (t.value === '__custom') current.armor[loc] = { name: 'Custom armor', sp: current.armor[loc].sp, spCurrent: current.armor[loc].spCurrent };
-      else { const a = D.ARMOR.find(x => x.name === t.value); current.armor[loc] = { name: a.name, sp: a.sp, spCurrent: a.sp }; }
+      if (t.value === '__custom') current.armor[loc] = { name: 'Custom armor', sp: current.armor[loc].sp, spCurrent: current.armor[loc].spCurrent, cost: 0 };
+      else {
+        const a = D.ARMOR.find(x => x.name === t.value);
+        current.armor[loc] = { name: a.name, sp: a.sp, spCurrent: a.sp, cost: a.cost };
+        pay(a.cost, a.name);
+      }
       saveNow(); return renderTab();
     }
     if (t.id === 'weapon-pick') {
-      if (t.value === 'custom') current.weapons.push({ name: 'New weapon', skill: 'Handgun', damage: '2d6', rof: 1, mag: 0, notes: '' });
-      else if (t.value !== '') { const w = D.WEAPONS[+t.value]; current.weapons.push({ name: w.name, skill: w.skill, damage: w.damage, rof: w.rof, mag: w.mag, notes: w.notes || '' }); }
+      if (t.value === 'custom') current.weapons.push({ name: 'New weapon', skill: 'Handgun', damage: '2d6', rof: 1, mag: 0, notes: '', cost: 0 });
+      else if (t.value !== '') {
+        const w = D.WEAPONS[+t.value];
+        current.weapons.push({ name: w.name, skill: w.skill, damage: w.damage, rof: w.rof, mag: w.mag, notes: w.notes || '', cost: w.cost });
+        pay(w.cost, w.name);
+      }
       saveNow(); return renderTab();
     }
   }
