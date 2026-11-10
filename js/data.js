@@ -472,6 +472,66 @@ CPR.DATA.WEAPON_TYPES = [
 ];
 
 /*
+ * ============================== NETRUNNING (core rulebook) ==============================
+ * Values entered from memory of the core rulebook — check them against your book.
+ * Effects are short summaries written for this app (the policy allows summaries, not book text).
+ * Black ICE is deliberately not included: the Homebrew Content Policy forbids reproducing
+ * stat blocks for enemies / hazards. Your GM runs those.
+ */
+// NET Actions rolled as Interface + 1d10 vs the DV the GM sets (or an opposing roll).
+CPR.DATA.INTERFACE_ABILITIES = [
+  { id: 'backdoor', name: 'Backdoor', text: 'Get past a Password on the current floor.' },
+  { id: 'cloak', name: 'Cloak', text: 'Hide your actions; anyone trying to trace you must beat this roll.' },
+  { id: 'control', name: 'Control', text: 'Operate a Control Node you reach (doors, cameras, turrets…).' },
+  { id: 'eyedee', name: 'Eye-Dee', text: 'Identify a file or piece of data you find.' },
+  { id: 'pathfinder', name: 'Pathfinder', text: 'Map the Architecture ahead of you.' },
+  { id: 'scanner', name: 'Scanner', text: 'Find Access Points and Architectures nearby (in meatspace).' },
+  { id: 'slide', name: 'Slide', text: 'Slip away from a Black ICE that is chasing you.' },
+  { id: 'virus', name: 'Virus', text: 'At the bottom of an Architecture, leave a Virus that does what you choose.' },
+  { id: 'zap', name: 'Zap', damage: '1d6', text: 'Basic attack: damage to a Program\'s REZ or to an enemy Netrunner\'s brain.' },
+];
+
+// Cyberdeck quality sets how many slots you have for Programs.
+CPR.DATA.CYBERDECKS = [
+  { id: '', name: 'No cyberdeck', slots: 0, cost: 0 },
+  { id: 'poor', name: 'Poor Quality Cyberdeck', slots: 5, cost: 100 },
+  { id: 'standard', name: 'Cyberdeck', slots: 7, cost: 500 },
+  { id: 'excellent', name: 'Excellent Quality Cyberdeck', slots: 9, cost: 1000 },
+];
+
+// Programs: class Booster / Defender / Attacker (anti-program or anti-personnel). Each uses 1 deck slot.
+// atk: added to Interface when attacking with it.  rez: its "hit points" in the NET.
+// damage / damage2: dice for its two damage cases (label says which target).
+CPR.DATA.PROGRAMS = [
+  // Boosters — add to your NET actions while rezzed
+  { id: 'eraser', name: 'Eraser', cls: 'Booster', atk: 0, def: 0, rez: 7, cost: 20, text: '+2 to Cloak while rezzed.' },
+  { id: 'see_ya', name: 'See Ya', cls: 'Booster', atk: 0, def: 0, rez: 7, cost: 20, text: '+2 to Pathfinder while rezzed.' },
+  { id: 'speedy', name: 'Speedy Gonzalvez', cls: 'Booster', atk: 0, def: 0, rez: 7, cost: 100, text: '+2 to your Speed in the NET while rezzed.' },
+  { id: 'worm', name: 'Worm', cls: 'Booster', atk: 0, def: 0, rez: 7, cost: 50, text: '+2 to Backdoor while rezzed.' },
+  // Defenders — protect you or your deck
+  { id: 'armor', name: 'Armor', cls: 'Defender', atk: 0, def: 0, rez: 7, cost: 50, text: 'Reduces brain damage you take by 4. Derezzes after it soaks one hit.' },
+  { id: 'flak', name: 'Flak', cls: 'Defender', atk: 0, def: 0, rez: 7, cost: 50, text: 'Drops the ATK of non-Black ICE attacker programs aimed at you to 0.' },
+  { id: 'shield', name: 'Shield', cls: 'Defender', atk: 0, def: 0, rez: 7, cost: 20, text: 'Stops the first brain damage you would take, then derezzes.' },
+  // Attackers (anti-program)
+  { id: 'banhammer', name: 'Banhammer', cls: 'Attacker', kind: 'Anti-Program', atk: 1, def: 0, rez: 0, cost: 50,
+    damage: '3d6', dmgLabel: 'vs non-Black ICE program', damage2: '2d6', dmg2Label: 'vs Black ICE', text: 'Hits a program\'s REZ: harder against regular programs.' },
+  { id: 'sword', name: 'Sword', cls: 'Attacker', kind: 'Anti-Program', atk: 1, def: 0, rez: 0, cost: 100,
+    damage: '3d6', dmgLabel: 'vs Black ICE', damage2: '2d6', dmg2Label: 'vs non-Black ICE program', text: 'Hits a program\'s REZ: harder against Black ICE.' },
+  { id: 'deckkrash', name: 'DeckKRASH', cls: 'Attacker', kind: 'Anti-Program', atk: 0, def: 0, rez: 0, cost: 100, text: 'Forces an enemy Netrunner to jack out unsafely if it hits.' },
+  // Attackers (anti-personnel)
+  { id: 'hellbolt', name: 'Hellbolt', cls: 'Attacker', kind: 'Anti-Personnel', atk: 2, def: 0, rez: 0, cost: 100,
+    damage: '2d6', dmgLabel: 'brain damage', text: 'Brain damage to an enemy Netrunner, and sets their deck on fire.' },
+  { id: 'nervescrub', name: 'Nervescrub', cls: 'Attacker', kind: 'Anti-Personnel', atk: 0, def: 0, rez: 0, cost: 100,
+    damage: '1d6', dmgLabel: 'INT, REF & DEX lost (1 hour)', text: 'Temporarily lowers an enemy Netrunner\'s INT, REF and DEX.' },
+  { id: 'poison_flatline', name: 'Poison Flatline', cls: 'Attacker', kind: 'Anti-Personnel', atk: 0, def: 0, rez: 0, cost: 100, text: 'Destroys one non-Black ICE program on the enemy Netrunner\'s deck.' },
+  { id: 'superglue', name: 'Superglue', cls: 'Attacker', kind: 'Anti-Personnel', atk: 2, def: 0, rez: 0, cost: 100,
+    damage: '1d6', dmgLabel: 'rounds stuck', text: 'Stops an enemy Netrunner from going deeper or jacking out for a few rounds.' },
+  { id: 'vrizzbolt', name: 'Vrizzbolt', cls: 'Attacker', kind: 'Anti-Personnel', atk: 1, def: 0, rez: 0, cost: 50,
+    damage: '1d6', dmgLabel: 'brain damage', text: 'Brain damage, and the target loses a NET action next turn.' },
+];
+CPR.DATA.programById = Object.fromEntries(CPR.DATA.PROGRAMS.map(p => [p.id, p]));
+
+/*
  * ===================== EDGERUNNERS MISSION KIT — FILL IN FROM YOUR BOOK =====================
  * These are built into the app like any core cyberware / quickhack. Their numbers aren't published
  * anywhere public, so they start empty (null / '') and show "⚠ Mission Kit values not entered"

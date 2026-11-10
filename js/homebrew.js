@@ -200,7 +200,7 @@ CPR.homebrew = (function () {
 
       <section class="hb-section">
         <div class="row"><h3 style="margin:0">Quickhacks</h3><span class="spacer"></span><button class="btn primary sm" data-a="new-qh">+ New quickhack</button></div>
-        <p class="muted small" style="margin:4px 0 0">Your own quickhacks, alongside the built-in Mission Kit ones. Players pick them on their character's Quickhacks tab and roll them there (Interface + d10 by default).</p>
+        <p class="muted small" style="margin:4px 0 0">Your own quickhacks, alongside the built-in Mission Kit ones. Players pick them on their character's Netrunning tab and roll them there (Interface + d10 by default).</p>
         ${hacks.length ? `<div class="hb-grid">${hacks.map(q => `<article class="hb-card qh" data-editqh="${q.id}">
             <header><b>⌁ ${esc(q.name)}</b><span>${q.base === 'interface' ? 'Interface' : esc(q.base)}</span></header>
             ${q.source ? `<div class="small" style="color:var(--orange)">${esc(q.source)}</div>` : ''}

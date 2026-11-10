@@ -16,7 +16,7 @@ CPR.characters = (function () {
       handle: '', name: '', role: 'solo', roleRank: R.startingRoleRank, age: '', pronouns: '',
       creationMode: 'package',
       stats, skills, customSkills: [],
-      hpCurrent: null, humanityExtra: 0, deathSaveBonus: 0, deathPenalty: 0, quickhacks: [],
+      hpCurrent: null, humanityExtra: 0, deathSaveBonus: 0, deathPenalty: 0, quickhacks: [], deck: '', programs: [],
       armor: { head: { name: 'None', sp: 0, spCurrent: 0 }, body: { name: 'None', sp: 0, spCurrent: 0 } },
       weapons: [], gear: [],
       cyber: { zones: {} },
@@ -78,6 +78,9 @@ CPR.characters = (function () {
     });
     c.cyber.zones = clean;
     c.quickhacks = arr(c.quickhacks).map(CPR.quickhacks.normalize);
+    if (!D.CYBERDECKS.some(k => k.id === c.deck)) c.deck = '';
+    c.programs = arr(c.programs).filter(pg => D.programById[pg.id])
+      .map(pg => ({ id: pg.id, rez: Math.max(0, Math.min(D.programById[pg.id].rez, num(pg.rez, D.programById[pg.id].rez))) }));
     return c;
   }
 
@@ -157,6 +160,8 @@ CPR.characters = (function () {
     Object.entries(D.CYBER_CONFLICTS || {}).forEach(([a, bs]) => bs.forEach(b => {
       if (a < b && ids.has(a) && ids.has(b)) warnings.push(`${D.cyberById[a].name} and ${D.cyberById[b].name} can't be combined`);
     }));
+    const deckSlots = (D.CYBERDECKS.find(k => k.id === (c.deck || '')) || { slots: 0 }).slots;
+    if ((c.programs || []).length > deckSlots) warnings.push(`Cyberdeck: ${(c.programs || []).length}/${deckSlots} program slots used`);
     if (humanity <= 0) warnings.push('Humanity 0 or less — cyberpsychosis!');
 
     // Roll bonuses from cyberware (Kerenzikov + any homebrew bonuses).
@@ -278,7 +283,7 @@ CPR.characters = (function () {
 
   /* ---------------- editor ---------------- */
   const TABS = [
-    ['play', '🎲 Play'], ['quickhacks', '⌁ Quickhacks'], ['identity', 'Identity'], ['stats', 'Stats'], ['skills', 'Skills'], ['cyber', 'Cyberware'],
+    ['play', '🎲 Play'], ['netrunning', '⌁ Netrunning'], ['identity', 'Identity'], ['stats', 'Stats'], ['skills', 'Skills'], ['cyber', 'Cyberware'],
     ['gear', 'Gear'], ['lifepath', 'Lifepath'], ['sheet', 'Sheet & Export'],
   ];
 
@@ -308,7 +313,7 @@ CPR.characters = (function () {
   function renderTab() {
     root.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
     const body = root.querySelector('#tab-body');
-    const fn = { play: tabPlay, quickhacks: tabQuickhacks, identity: tabIdentity, stats: tabStats, skills: tabSkills, cyber: tabCyber, gear: tabGear, lifepath: tabLifepath, sheet: tabSheet }[tab];
+    const fn = { play: tabPlay, netrunning: tabNetrunning, identity: tabIdentity, stats: tabStats, skills: tabSkills, cyber: tabCyber, gear: tabGear, lifepath: tabLifepath, sheet: tabSheet }[tab];
     body.innerHTML = fn(current, derive(current));
     refreshDerived();
   }
@@ -415,7 +420,6 @@ CPR.characters = (function () {
     return q.base === 'interface' ? [{ label: 'Interface', v: interfaceRank(c) }] : skillParts(c, d, q.base);
   }
 
-  /* ----- quickhacks tab ----- */
   function qhRow(c, d, q, i) {
     return `<div class="pw qh">
       <div class="pw-name"><b>${esc(q.name)}${q.builtIn ? ' <span class="wt mk">Mission Kit</span>' : ' <span class="wt hb">★ GM</span>'}</b>
@@ -429,30 +433,79 @@ CPR.characters = (function () {
       </div></div>`;
   }
 
-  function tabQuickhacks(c, d) {
+  /* ----- netrunning tab ----- */
+  // Boosters add +2 to one Interface ability while they still have REZ.
+  const BOOSTS = { eraser: 'cloak', see_ya: 'pathfinder', worm: 'backdoor' };
+  const programsOf = c => (c.programs || []).map(p => ({ ...D.programById[p.id], cur: p.rez })).filter(p => p.id);
+  const deckOf = c => D.CYBERDECKS.find(k => k.id === (c.deck || '')) || D.CYBERDECKS[0];
+  function abilityParts(c, abilityId) {
+    const parts = [{ label: 'Interface', v: interfaceRank(c) }];
+    programsOf(c).forEach(pg => { if (BOOSTS[pg.id] === abilityId && pg.cur > 0) parts.push({ label: pg.name, v: 2 }); });
+    return parts;
+  }
+
+  function tabNetrunning(c, d) {
     const known = quickhacksOf(c);
     const knownIds = new Set(known.map(q => q.id));
     const avail = CPR.quickhacks.list().filter(q => !knownIds.has(q.id));
     const plugs = d.cyber.some(x => x.entry.id === 'interface_plugs');
     const netrunner = c.role === 'netrunner';
+    const deck = deckOf(c), progs = programsOf(c), free = deck.slots - progs.length;
+    const owned = new Set(progs.map(p => p.id));
+    const classes = ['Booster', 'Defender', 'Attacker'];
     return `<div class="grid" style="grid-template-columns:minmax(0,1fr)">
       <div class="panel qh-head">
         <div class="pv"><small>INTERFACE</small><b>${interfaceRank(c)}</b><span>${netrunner ? 'Netrunner role rank' : 'Only Netrunners have Interface'}</span></div>
         <div class="pv"><small>INTERFACE PLUGS</small><b>${plugs ? '✓' : '—'}</b><span>${plugs ? 'Installed' : 'Install them in the Neural Link'}</span></div>
-        <div class="pv"><small>KNOWN</small><b>${known.length}</b><span>quickhacks</span></div>
-        ${!netrunner ? '<p class="small" style="color:var(--orange);margin:0;flex-basis:100%">Quickhacks that roll Interface count it as 0 for non-Netrunners. Ask your GM before using them.</p>' : ''}
+        <div class="pv"><small>CYBERDECK</small>
+          <select data-deck>${D.CYBERDECKS.map(k => `<option value="${k.id}" ${k.id === deck.id ? 'selected' : ''}>${esc(k.name)}${k.slots ? ` — ${k.slots} slots, ${k.cost.toLocaleString()}eb` : ''}</option>`).join('')}</select></div>
+        <div class="pv"><small>PROGRAM SLOTS</small><b class="${free < 0 ? 'over' : ''}">${progs.length}/${deck.slots}</b><span>${free < 0 ? 'Over capacity' : free === 1 ? '1 free' : free + ' free'}</span></div>
+        ${!netrunner ? '<p class="small" style="color:var(--orange);margin:0;flex-basis:100%">Interface rolls count it as 0 for non-Netrunners. Ask your GM before running the NET.</p>' : ''}
       </div>
+
       <div class="panel">
-        <h3>Known quickhacks</h3>
-        <div class="pw-list">${known.map((q, i) => qhRow(c, d, q, i)).join('') || '<p class="muted small">None yet. Learn some from the list below.</p>'}</div>
+        <h3>Interface abilities</h3>
+        <p class="muted small" style="margin-top:0">NET Actions: Interface + 1d10 against the DV your GM sets. Boosters on your deck add their bonus automatically.</p>
+        <div class="ia-grid">${D.INTERFACE_ABILITIES.map(a => `<div class="ia">
+          <button class="ia-main" data-roll="iface:${a.id}"><b>${esc(a.name)}</b><em>${signed(sum(abilityParts(c, a.id)))}</em><small>${esc(a.text)}</small></button>
+          ${a.damage ? `<button class="roll-btn dmg" data-roll="ifdmg:${a.id}"><small>DMG</small>${a.damage}</button>` : ''}</div>`).join('')}</div>
       </div>
+
       <div class="panel">
-        <h3>Available</h3>
-        <p class="muted small">Built-in Edgerunners Mission Kit quickhacks, plus any your GM made on the Homebrew page (import their library file to see them).</p>
+        <div class="row"><h3 style="margin:0">Programs on your deck</h3><span class="spacer"></span><span class="badge ${free < 0 ? 'bad' : 'cyan'}">${progs.length}/${deck.slots} slots</span></div>
+        <div class="pw-list" style="margin-top:8px">${progs.map((pg, i) => `<div class="pw prog">
+          <div class="pw-name"><b>${esc(pg.name)} <span class="wt pg-${pg.cls.toLowerCase()}">${esc(pg.kind || pg.cls)}</span></b>
+            <small>ATK ${pg.atk} · DEF ${pg.def} · REZ ${pg.rez}</small><div class="qh-effect">${esc(pg.text)}</div></div>
+          <div class="pw-btns">
+            ${pg.cls === 'Attacker' ? `<button class="roll-btn qh" data-roll="pgatk:${i}" title="Interface + ATK + 1d10"><small>ATK</small>${signed(interfaceRank(c) + pg.atk)}</button>` : ''}
+            ${pg.damage ? `<button class="roll-btn dmg" data-roll="pgdmg:${i}:1" title="${esc(pg.dmgLabel || '')}"><small>${pg.damage2 ? 'DMG 1' : 'DMG'}</small>${pg.damage}</button>` : ''}
+            ${pg.damage2 ? `<button class="roll-btn dmg" data-roll="pgdmg:${i}:2" title="${esc(pg.dmg2Label || '')}"><small>DMG 2</small>${pg.damage2}</button>` : ''}
+            ${pg.rez > 0 ? `<div class="rez"><button class="btn icon sm" data-a="pg-rez" data-i="${i}" data-d="-1" title="Take 1 REZ damage">−</button>
+              <span class="${pg.cur <= 0 ? 'out' : ''}">${pg.cur <= 0 ? 'DEREZZED' : `REZ ${pg.cur}/${pg.rez}`}</span>
+              <button class="btn icon sm" data-a="pg-rez" data-i="${i}" data-d="1" title="Restore 1 REZ">+</button></div>` : ''}
+            <button class="btn sm ghost" data-a="pg-remove" data-i="${i}">Remove</button>
+          </div></div>`).join('') || `<p class="muted small">${deck.slots ? 'No programs yet. Add some from the list below.' : 'Pick a cyberdeck above to load programs.'}</p>`}</div>
+        ${progs.some(p => p.rez > 0) ? '<button class="btn sm" data-a="pg-rez-all" style="margin-top:8px">↻ Restore all REZ</button>' : ''}
+      </div>
+
+      <div class="panel">
+        <h3>Program shop</h3>
+        <p class="muted small" style="margin-top:0">Core rulebook programs (short summaries; check values against your book). Each uses 1 deck slot.</p>
+        ${classes.map(cl => `<h4 class="pg-h">${cl}s</h4><div class="qh-avail">${D.PROGRAMS.filter(p => p.cls === cl).map(p => `<div class="qh-av">
+          <div><b>${esc(p.name)}</b> <span class="wt pg-${cl.toLowerCase()}">${esc(p.kind || cl)}</span>
+            <small>${p.cls === 'Attacker' ? `ATK ${p.atk}` : `REZ ${p.rez}`}${p.damage ? ` · ${p.damage}${p.damage2 ? '/' + p.damage2 : ''}` : ''} · ${p.cost}eb — ${esc(p.text)}</small></div>
+          ${owned.has(p.id) ? '<span class="badge ok">On deck</span>' : `<button class="btn sm cyan" data-a="pg-add" data-id="${p.id}" ${free > 0 ? '' : 'disabled'}>+ Add</button>`}</div>`).join('')}</div>`).join('')}
+        <p class="muted small">Black ICE isn't listed: those are your GM's enemies to run.</p>
+      </div>
+
+      <div class="panel">
+        <h3>⌁ Quickhacks</h3>
+        <div class="pw-list">${known.map((q, i) => qhRow(c, d, q, i)).join('') || '<p class="muted small">None learned yet.</p>'}</div>
+        ${avail.length ? `<h4 class="pg-h">Available</h4><p class="muted small" style="margin-top:0">Edgerunners Mission Kit quickhacks, plus any your GM made on the Homebrew page.</p>
         <div class="qh-avail">${avail.map(q => `<div class="qh-av">
           <div><b>${esc(q.name)}</b> ${q.builtIn ? '<span class="wt mk">Mission Kit</span>' : '<span class="wt hb">★ GM</span>'}
             ${q.effect ? `<small>${esc(q.effect)}</small>` : ''}</div>
-          <button class="btn sm cyan" data-a="qh-toggle" data-id="${q.id}">+ Learn</button></div>`).join('') || '<p class="muted small">You know every available quickhack.</p>'}</div>
+          <button class="btn sm cyan" data-a="qh-toggle" data-id="${q.id}">+ Learn</button></div>`).join('')}</div>` : ''}
       </div>
     </div>`;
   }
@@ -647,6 +700,27 @@ CPR.characters = (function () {
         if (kind === 'cwatk') return R.check({ ...base, label: `${x.info.name} — Attack`, parts: skillParts(c, d, x.w.skill), note: [`ROF ${x.w.rof}`, rule].filter(Boolean).join(' · ') });
         return R.damage({ ...base, label: `${x.info.name} — Damage`, dice: x.w.damage,
           note: [isMelee({ skill: x.w.skill }) ? 'Melee: target armor counts at half SP' : '', rule].filter(Boolean).join(' · ') });
+      }
+      case 'iface': {
+        const a = D.INTERFACE_ABILITIES.find(x => x.id === arg);
+        return R.check({ ...base, label: `⌁ ${a.name}`, parts: abilityParts(c, a.id), note: a.text });
+      }
+      case 'ifdmg': {
+        const a = D.INTERFACE_ABILITIES.find(x => x.id === arg);
+        return R.damage({ ...base, label: `${a.name} — Damage`, dice: a.damage, note: a.text });
+      }
+      case 'pgatk': {
+        const pg = programsOf(c)[+arg];
+        if (!pg) return;
+        return R.check({ ...base, label: `${pg.name} — Attack`, parts: [{ label: 'Interface', v: interfaceRank(c) }, { label: `${pg.name} ATK`, v: pg.atk }],
+          note: `Opposed by the defender's Interface (or ICE) + DEF + 1d10. ${pg.text}` });
+      }
+      case 'pgdmg': {
+        const [idx, which] = arg.split(':');
+        const pg = programsOf(c)[+idx];
+        if (!pg) return;
+        const two = which === '2';
+        return R.damage({ ...base, label: `${pg.name} — ${two ? pg.dmg2Label : pg.dmgLabel}`, dice: two ? pg.damage2 : pg.damage, note: pg.text });
       }
       case 'qh': case 'qhdmg': {
         const q = quickhacksOf(c)[+arg];
@@ -1019,6 +1093,7 @@ CPR.characters = (function () {
             ${c.weapons.map(w => `<tr><td>${esc(w.name)}${w.wtype ? ` (${esc(wtypeName(w.wtype))})` : ''}</td><td>${esc(effDmg(w).label)}</td><td>${w.rof}</td><td>${w.mag || '—'}</td><td>${esc(w.notes || '')}</td></tr>`).join('')}
             ${cyberWeaponsOf(d).map(x => `<tr><td>${esc(x.info.name)} (cyber)</td><td>${esc(x.w.damage)}</td><td>${x.w.rof}</td><td>—</td><td>${esc(x.w.skill)}</td></tr>`).join('')}
             ${c.weapons.length || cyberWeaponsOf(d).length ? '' : '<tr><td colspan="5">—</td></tr>'}</table>
+          ${c.deck || (c.programs || []).length ? `<h4>Cyberdeck</h4><table><tr><td>${esc(deckOf(c).name)}</td><td>${(c.programs || []).length}/${deckOf(c).slots} slots</td></tr>${programsOf(c).map(pg => `<tr><td>${esc(pg.name)} (${esc(pg.kind || pg.cls)})</td><td>${pg.cls === 'Attacker' ? 'ATK ' + pg.atk : 'REZ ' + pg.cur + '/' + pg.rez}${pg.damage ? ' · ' + pg.damage : ''}</td></tr>`).join('')}</table>` : ''}
           ${quickhacksOf(c).length ? `<h4>Quickhacks</h4><table>${quickhacksOf(c).map(q => `<tr><td>${esc(q.name)}</td><td>${q.dv ? 'DV ' + esc(q.dv) : ''}${q.damage ? ' · ' + esc(q.damage) : ''}</td><td>${esc(q.effect)}</td></tr>`).join('')}</table>` : ''}
         </div>
         <div>
@@ -1057,6 +1132,10 @@ CPR.characters = (function () {
     L.push('', 'WEAPONS');
     c.weapons.forEach(w => L.push(`  ${w.name}${w.wtype ? ' [' + wtypeName(w.wtype) + ']' : ''}: ${effDmg(w).label}, ROF ${w.rof}${w.mag ? ', Mag ' + w.mag : ''}${w.notes ? ' — ' + w.notes : ''}`));
     cyberWeaponsOf(d).forEach(x => L.push(`  ${x.info.name} (cyberware): ${x.w.damage}, ROF ${x.w.rof}`));
+    if (c.deck || (c.programs || []).length) {
+      L.push('', `CYBERDECK: ${deckOf(c).name} (${(c.programs || []).length}/${deckOf(c).slots} slots)`);
+      programsOf(c).forEach(pg => L.push(`  ${pg.name} [${pg.kind || pg.cls}] ${pg.cls === 'Attacker' ? 'ATK ' + pg.atk : 'REZ ' + pg.cur + '/' + pg.rez}${pg.damage ? ' ' + pg.damage : ''} — ${pg.text}`));
+    }
     if (quickhacksOf(c).length) { L.push('', 'QUICKHACKS'); quickhacksOf(c).forEach(q => L.push(`  ${q.name}${q.dv ? ' (DV ' + q.dv + ')' : ''}${q.damage ? ' ' + q.damage : ''}${q.effect ? ' — ' + q.effect : ''}`)); }
     L.push('', 'CYBERWARE');
     d.cyber.forEach(x => L.push(`  [${x.zone.label.split(' — ')[0]}] ${x.info.name} (HL ${x.info.hl})`));
@@ -1134,6 +1213,13 @@ CPR.characters = (function () {
       saveNow(); return renderTab();
     }
     if (t.id === 'pay-gear') { S.write('ui.payChrome', t.checked); return; }
+    if (t.dataset.deck !== undefined) {
+      const k = D.CYBERDECKS.find(x => x.id === t.value) || D.CYBERDECKS[0];
+      current.deck = k.id;
+      pay(k.cost, k.name);
+      if ((current.programs || []).length > k.slots) U.toast(`Only ${k.slots} program slots: remove some programs`);
+      saveNow(); return renderTab();
+    }
     if (t.dataset.armor) {
       const loc = t.dataset.armor;
       if (t.value === '__custom') current.armor[loc] = { name: 'Custom armor', sp: current.armor[loc].sp, spCurrent: current.armor[loc].spCurrent, cost: 0 };
@@ -1187,6 +1273,22 @@ CPR.characters = (function () {
       case 'cw-view': cyberView = b.dataset.v; S.write('ui.cyberView', cyberView); renderTab(); break;
       case 'play-skills': playAllSkills = b.dataset.v === '1'; renderTab(); break;
       case 'qh-toggle': toggleQuickhack(b.dataset.id); break;
+      case 'pg-add': {
+        const p = D.programById[b.dataset.id];
+        if (!p) break;
+        const deck = deckOf(c);
+        if ((c.programs || []).length >= deck.slots) { U.toast(deck.slots ? 'Your cyberdeck is full' : 'Pick a cyberdeck first'); break; }
+        c.programs = (c.programs || []).concat({ id: p.id, rez: p.rez });
+        pay(p.cost, p.name);
+        saveNow(); renderTab(); break;
+      }
+      case 'pg-remove': c.programs.splice(+b.dataset.i, 1); saveNow(); renderTab(); break;
+      case 'pg-rez': {
+        const pg = c.programs[+b.dataset.i], max = D.programById[pg.id].rez;
+        pg.rez = Math.max(0, Math.min(max, pg.rez + Number(b.dataset.d)));
+        saveNow(); renderTab(); break;
+      }
+      case 'pg-rez-all': c.programs.forEach(pg => { pg.rez = D.programById[pg.id].rez; }); saveNow(); renderTab(); break;
       case 'play-hp': {
         const d = derive(c);
         const amt = Math.max(0, parseInt(root.querySelector('#play-hp-amt').value, 10) || 0);
