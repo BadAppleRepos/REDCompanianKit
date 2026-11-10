@@ -93,15 +93,17 @@ CPR.quickhacks = (function () {
     return {
       id: S.safeId(q.id, 'qh'), name: String(q.name || 'Untitled quickhack'), effect: String(q.effect || ''),
       base: q.base === 'interface' || CPR.DATA.SKILLS.some(s => s.name === q.base) ? q.base : 'interface',
-      dv: String(q.dv || ''), damage: String(q.damage || ''), cost: String(q.cost || ''), source: String(q.source || ''),
+      tier: CPR.DATA.QUICKHACK_TIERS.includes(q.tier) ? q.tier : '',
+      dv: String(q.dv || ''), duration: String(q.duration || ''), damage: String(q.damage || ''), dmgLabel: String(q.dmgLabel || ''),
+      cost: String(q.cost || ''), source: String(q.source || ''),
       updated: q.updated || Date.now(),
     };
   }
-  // Built-in quickhacks (Edgerunners Mission Kit table in data.js) come first, then the GM's own.
-  const builtins = () => CPR.DATA.MISSION_KIT_QUICKHACKS.map(q => ({
-    ...normalize({ ...q, source: CPR.DATA.MISSION_KIT_SOURCE, updated: 1 }), builtIn: true, unset: !q.dv && !q.damage,
+  // Built-in prototype quickhacks (table in data.js) come first, then the GM's own.
+  const builtins = () => CPR.DATA.QUICKHACKS.map(q => ({
+    ...normalize({ ...q, source: CPR.DATA.QUICKHACK_SOURCE, updated: 1 }), builtIn: true,
   }));
-  const builtinIds = new Set(CPR.DATA.MISSION_KIT_QUICKHACKS.map(q => q.id));
+  const builtinIds = new Set(CPR.DATA.QUICKHACKS.map(q => q.id).concat(Object.keys(CPR.DATA.QUICKHACK_ALIASES)));
   const library = () => S.list(KEY).map(normalize).sort((a, b) => a.name.localeCompare(b.name));
   const list = () => builtins().concat(library());
   const get = id => list().find(q => q.id === id) || null;
@@ -204,7 +206,7 @@ CPR.homebrew = (function () {
         ${hacks.length ? `<div class="hb-grid">${hacks.map(q => `<article class="hb-card qh" data-editqh="${q.id}">
             <header><b>⌁ ${esc(q.name)}</b><span>${q.base === 'interface' ? 'Interface' : esc(q.base)}</span></header>
             ${q.source ? `<div class="small" style="color:var(--orange)">${esc(q.source)}</div>` : ''}
-            <div class="hb-nums">${q.dv ? `<span>DV ${esc(q.dv)}</span>` : ''}${q.damage ? `<span>DMG ${esc(q.damage)}</span>` : ''}${q.cost ? `<span>${esc(q.cost)}</span>` : ''}</div>
+            <div class="hb-nums">${q.tier ? `<span>${esc(q.tier)}</span>` : ''}${q.dv ? `<span>DV ${esc(q.dv)}</span>` : ''}${q.duration ? `<span>${esc(q.duration)}</span>` : ''}${q.damage ? `<span>${esc(q.damage)}</span>` : ''}${q.cost ? `<span>${esc(q.cost)}</span>` : ''}</div>
             ${q.effect ? `<p>${esc(q.effect)}</p>` : ''}
             <div class="row end"><button class="btn sm danger" data-a="del-qh" data-id="${q.id}">Delete</button></div>
           </article>`).join('')}</div>` : '<div class="empty small">No custom quickhacks yet.</div>'}
@@ -328,10 +330,15 @@ CPR.homebrew = (function () {
         <div class="hb-row">
           <label class="field">Roll with<select id="qh-base"><option value="interface" ${q.base === 'interface' ? 'selected' : ''}>Interface (Netrunner rank)</option>
             ${D.SKILLS.map(s => `<option ${s.name === q.base ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label>
-          <label class="field">DV / opposed by<input id="qh-dv" value="${esc(q.dv)}" placeholder="e.g. 13, or target's Evasion"></label>
+          <label class="field">DV / opposed by<input id="qh-dv" value="${esc(q.dv)}" placeholder="e.g. 10"></label>
         </div>
         <div class="hb-row">
-          <label class="field">Damage (optional)<input id="qh-dmg" value="${esc(q.damage)}" placeholder="e.g. 3d6"></label>
+          <label class="field">Tier<select id="qh-tier"><option value="">—</option>${D.QUICKHACK_TIERS.map(t => `<option ${t === q.tier ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+          <label class="field">Duration<input id="qh-duration" value="${esc(q.duration)}" placeholder="e.g. 60 sec (20 rounds)"></label>
+        </div>
+        <div class="hb-row">
+          <label class="field">Dice to roll (optional)<input id="qh-dmg" value="${esc(q.damage)}" placeholder="e.g. 3d6"></label>
+          <label class="field">What the dice are<input id="qh-dmglabel" value="${esc(q.dmgLabel)}" placeholder="e.g. damage to HP"></label>
           <label class="field">Cost / limits (optional)<input id="qh-cost" value="${esc(q.cost)}" placeholder="e.g. 1 NET Action"></label>
         </div>
         <label class="field">Effect<textarea id="qh-effect" rows="4">${esc(q.effect)}</textarea></label>
@@ -340,7 +347,8 @@ CPR.homebrew = (function () {
         label: isNew ? 'Create' : 'Save', cls: 'primary', onClick: w => {
           const v = s => w.querySelector(s).value.trim();
           if (!v('#qh-name')) { U.toast('Give it a name'); return false; }
-          Q.save({ ...q, name: v('#qh-name'), base: v('#qh-base'), dv: v('#qh-dv'), damage: v('#qh-dmg'), cost: v('#qh-cost'), effect: v('#qh-effect'), updated: Date.now() });
+          Q.save({ ...q, name: v('#qh-name'), base: v('#qh-base'), dv: v('#qh-dv'), tier: v('#qh-tier'), duration: v('#qh-duration'),
+            damage: v('#qh-dmg'), dmgLabel: v('#qh-dmglabel'), cost: v('#qh-cost'), effect: v('#qh-effect'), updated: Date.now() });
           render(); U.toast('Quickhack saved');
         },
       }],

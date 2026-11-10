@@ -36,18 +36,18 @@ An installable web app (PWA) for use with Cyberpunk RED. It runs on Windows, iPh
 
 **Edgerunners Mission Kit support**
 - **Built-in cyberware:** Gorilla Arms, Mantis Blades and Monowire are standard Cyberarm options in the Ripperdoc and dropdowns. When their numbers are filled in, they get Hit and Damage buttons on the Play tab automatically, as the core blades (Wolvers, Rippers…) already do.
-- **Built-in quickhacks:** Short Circuit, Cripple Movement and Reboot.
 - **Weapon types:** Power, Tech and Smart, set on the Gear tab. The GM writes each type's rule on the Homebrew page, and it's shown on that weapon's rolls.
 - **Fill in the numbers once:** Mission Kit values go in **one table at the top of [`js/data.js`](js/data.js)** (`MISSION_KIT_CYBERWARE` and `MISSION_KIT_QUICKHACKS`). Anything still empty is flagged in the app with exactly what's missing, and nothing is guessed.
   - **Gorilla Arms** (complete): 500eb, 2d6 Humanity Loss and 2 option slots per arm (4d6 for a pair), 3d6 damage (Brawling), BODY counts as 11 for Choke, Slam and strength. A pair lets you force open doors, move Thick Cover objects, and Choke and Slam opponents.
-  - **Mantis Blades, Monowire** and the three quickhacks: not entered yet.
+  - **Mantis Blades, Monowire:** not entered yet.
 
 **Netrunning tab**
 - Every character has a **⌁ Netrunning** tab showing their Interface rank and whether they have Interface Plugs.
 - **Interface abilities** (Backdoor, Cloak, Control, Eye-Dee, Pathfinder, Scanner, Slide, Virus, Zap): one tap rolls Interface + 1d10. Booster programs (Eraser, See Ya, Worm) add their +2 automatically while they have REZ.
 - **Cyberdeck:** pick Poor / Standard / Excellent; program slots are tracked.
 - **Programs:** the core rulebook Boosters, Defenders and Attackers, with ATK/DEF/REZ, attack and damage rolls, and REZ tracking (take hits, see when a program derezzes, restore all). Effects are short summaries; check values against your book. Black ICE isn't included, since the Homebrew Content Policy rules out reproducing enemy stat blocks.
-- **Quickhacks** (Mission Kit and GM-made) are learned and rolled here too.
+- **Quickhacks:** nine built-in *prototype* quickhacks in four tiers. Simple: Sonic Shock (DV 6). Standard: Short Circuit, Overheat (DV 8). Difficult: Cyberware Malfunction, Slow, Synapse Burnout (DV 10). Advanced: Shard Ejection, System Reset, Puppet (DV 12). GM-made quickhacks from the Homebrew page appear alongside them. A *How quickhacking works* panel covers the 50m range, the contested upload (Interface + 1d10 vs WILL + Concentration + 1d10), detection, and one quickhack per target per turn.
+- **Prototype strain:** every quickhack attempt costs DV ÷ 2 (rounded down) − Interface + 1d6 temporary Humanity, minimum 1. The tracker adds it automatically, lowers current Humanity (and EMP), has −1/+1 to adjust by hand, and a **Clear (long rest)** button. Each quickhack shows the strain range the character can expect.
 
 **Weapon damage Override & Modifier**
 - On the Gear tab, **Override** replaces a weapon's base damage dice (e.g. a 3d6 pistol rolled as 4d6). **Modifier** adds a flat amount to every damage roll (+2, −1…).

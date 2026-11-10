@@ -16,7 +16,7 @@ CPR.characters = (function () {
       handle: '', name: '', role: 'solo', roleRank: R.startingRoleRank, age: '', pronouns: '',
       creationMode: 'package',
       stats, skills, customSkills: [],
-      hpCurrent: null, humanityExtra: 0, deathSaveBonus: 0, deathPenalty: 0, quickhacks: [], deck: '', programs: [],
+      hpCurrent: null, humanityExtra: 0, deathSaveBonus: 0, deathPenalty: 0, quickhacks: [], deck: '', programs: [], tempHumanity: 0,
       armor: { head: { name: 'None', sp: 0, spCurrent: 0 }, body: { name: 'None', sp: 0, spCurrent: 0 } },
       weapons: [], gear: [],
       cyber: { zones: {} },
@@ -39,7 +39,8 @@ CPR.characters = (function () {
     D.SKILLS.forEach(s => { if (c.skills[s.name] === undefined) c.skills[s.name] = 0; });
     Object.keys(c.lifepath).forEach(k => { c.lifepath[k] = str(c.lifepath[k]); });
     ['handle', 'name', 'age', 'pronouns', 'notes'].forEach(k => { c[k] = str(c[k]); });
-    ['roleRank', 'money', 'ip', 'reputation', 'humanityExtra', 'deathSaveBonus', 'deathPenalty'].forEach(k => { c[k] = num(c[k]); });
+    ['roleRank', 'money', 'ip', 'reputation', 'humanityExtra', 'deathSaveBonus', 'deathPenalty', 'tempHumanity'].forEach(k => { c[k] = num(c[k]); });
+    c.tempHumanity = Math.max(0, c.tempHumanity);
     c.hpCurrent = c.hpCurrent == null ? null : num(c.hpCurrent, null);
     if (!D.ROLES.some(r => r.id === c.role)) c.role = 'solo';
     if (c.creationMode !== 'free') c.creationMode = 'package';
@@ -77,7 +78,8 @@ CPR.characters = (function () {
       clean[z.id] = { foundation: entry(zs.foundation), options: (Array.isArray(zs.options) ? zs.options : []).map(entry).filter(Boolean) };
     });
     c.cyber.zones = clean;
-    c.quickhacks = arr(c.quickhacks).map(CPR.quickhacks.normalize);
+    c.quickhacks = arr(c.quickhacks).map(q => ({ ...q, id: D.QUICKHACK_ALIASES[q.id] || q.id })).map(CPR.quickhacks.normalize)
+      .filter((q, i, all) => all.findIndex(x => x.id === q.id) === i);
     if (!D.CYBERDECKS.some(k => k.id === c.deck)) c.deck = '';
     c.programs = arr(c.programs).filter(pg => D.programById[pg.id])
       .map(pg => ({ id: pg.id, rez: Math.max(0, Math.min(D.programById[pg.id].rez, num(pg.rez, D.programById[pg.id].rez))) }));
@@ -132,7 +134,9 @@ CPR.characters = (function () {
     const hlCyber = cyber.reduce((a, x) => a + x.info.hl, 0);
     const cyberCost = cyber.reduce((a, x) => a + x.info.cost, 0);
     const humanityMax = (st.EMP || 0) * 10;
-    const humanity = humanityMax - hlCyber - (Number(c.humanityExtra) || 0);
+    // Temporary Humanity lost to prototype quickhacks counts until it's cleared on a long rest.
+    const tempHumanity = Math.max(0, Number(c.tempHumanity) || 0);
+    const humanity = humanityMax - hlCyber - (Number(c.humanityExtra) || 0) - tempHumanity;
     const empCur = Math.max(0, Math.min(st.EMP || 0, Math.floor(humanity / 10)));
     const hpMax = 10 + 5 * Math.ceil(((st.BODY || 0) + (st.WILL || 0)) / 2);
     const hp = c.hpCurrent == null ? hpMax : c.hpCurrent;
@@ -195,7 +199,7 @@ CPR.characters = (function () {
     return {
       hpMax, hp, seriously: Math.ceil(hpMax / 2), deathSave: (st.BODY || 0) + (Number(c.deathSaveBonus) || 0),
       humanityMax, humanity, empCur, hlCyber, cyberCost, statTotal, skillTotal, warnings, cyber, skinSp, role, mods, initBonus,
-      brawlBody, brawlBodySource, fullPairs,
+      brawlBody, brawlBodySource, fullPairs, tempHumanity,
       walk: st.MOVE * 2, run: st.MOVE * 6,
     };
   }
@@ -420,15 +424,26 @@ CPR.characters = (function () {
     return q.base === 'interface' ? [{ label: 'Interface', v: interfaceRank(c) }] : skillParts(c, d, q.base);
   }
 
+  // Prototype strain: quickhack DV / 2 (rounded down) - Interface rank + 1d6, never less than 1.
+  function strainBase(c, q) { return Math.floor((parseInt(q.dv, 10) || 0) / 2) - interfaceRank(c); }
+  function strainRoll(c, q) {
+    const r = U.roll(D.QUICKHACK_STRAIN).total, half = Math.floor((parseInt(q.dv, 10) || 0) / 2), iface = interfaceRank(c);
+    return { roll: r, half, iface, total: Math.max(1, half - iface + r) };
+  }
+  // e.g. "Strain 1–4": the range this character can expect from a quickhack.
+  const strainRange = (c, q) => { const b = strainBase(c, q), lo = Math.max(1, b + 1), hi = Math.max(1, b + 6); return lo === hi ? `${lo}` : `${lo}–${hi}`; };
+
+  const qhBadge = q => (q.builtIn ? '<span class="wt mk">Prototype</span>' : '<span class="wt hb">★ GM</span>');
+  const qhMeta = q => [q.tier, q.dv ? 'DV ' + q.dv : '', q.duration, q.base !== 'interface' ? q.base : '', q.cost].filter(Boolean).join(' · ');
+
   function qhRow(c, d, q, i) {
     return `<div class="pw qh">
-      <div class="pw-name"><b>${esc(q.name)}${q.builtIn ? ' <span class="wt mk">Mission Kit</span>' : ' <span class="wt hb">★ GM</span>'}</b>
-        <small>${q.base === 'interface' ? 'Interface' : esc(q.base)}${q.dv ? ' · DV ' + esc(q.dv) : ''}${q.cost ? ' · ' + esc(q.cost) : ''}</small>
-        ${q.effect ? `<div class="qh-effect">${esc(q.effect)}</div>` : ''}
-        ${q.unset ? '<div class="qh-unset">⚠ Mission Kit values not entered (DV, damage, cost) — add them in js/data.js.</div>' : ''}</div>
+      <div class="pw-name"><b>${esc(q.name)} ${qhBadge(q)}</b>
+        <small>${esc(qhMeta(q))} · <span class="strain-tag">Strain ${strainRange(c, q)}</span></small>
+        ${q.effect ? `<div class="qh-effect">${esc(q.effect)}</div>` : ''}</div>
       <div class="pw-btns">
-        <button class="roll-btn qh" data-roll="qh:${i}"><small>HACK</small>${signed(sum(qhParts(c, d, q)))}</button>
-        ${q.damage ? `<button class="roll-btn dmg" data-roll="qhdmg:${i}"><small>DMG</small>${esc(q.damage)}</button>` : ''}
+        <button class="roll-btn qh" data-roll="qh:${i}" title="Upload: Interface + 1d10 (costs ${D.QUICKHACK_STRAIN_TEXT} temporary Humanity)"><small>HACK</small>${signed(sum(qhParts(c, d, q)))}</button>
+        ${q.damage ? `<button class="roll-btn dmg" data-roll="qhdmg:${i}" title="${esc(q.dmgLabel || 'Damage')}"><small>${esc((q.dmgLabel || 'DMG').split(' ')[0].toUpperCase())}</small>${esc(q.damage)}</button>` : ''}
         <button class="btn sm ghost" data-a="qh-toggle" data-id="${q.id}" title="Remove from this character">Forget</button>
       </div></div>`;
   }
@@ -500,12 +515,26 @@ CPR.characters = (function () {
 
       <div class="panel">
         <h3>⌁ Quickhacks</h3>
+        <details class="qh-rules"><summary>How quickhacking works</summary>
+          <dl>${D.QUICKHACK_RULES.map(([t, x]) => `<dt>${esc(t)}</dt><dd>${esc(x)}</dd>`).join('')}</dl></details>
+        <div class="strain ${d.tempHumanity ? 'on' : ''}">
+          <div><small>PROTOTYPE STRAIN</small><b>${d.tempHumanity}</b><span>temporary Humanity lost · Humanity now ${d.humanity}/${d.humanityMax}</span></div>
+          <div class="row">
+            <button class="btn icon sm" data-a="strain-adj" data-d="-1" title="Adjust by hand">−1</button>
+            <button class="btn icon sm" data-a="strain-adj" data-d="1" title="Adjust by hand">+1</button>
+            <button class="btn sm yellow" data-a="strain-clear" ${d.tempHumanity ? '' : 'disabled'}>Clear (long rest)</button>
+          </div>
+        </div>
+        <p class="muted small">These quickhacks are prototypes: every Hack roll also costs you ${D.QUICKHACK_STRAIN_TEXT} in temporary Humanity, added above automatically. Each quickhack shows the range you can expect.</p>
         <div class="pw-list">${known.map((q, i) => qhRow(c, d, q, i)).join('') || '<p class="muted small">None learned yet.</p>'}</div>
-        ${avail.length ? `<h4 class="pg-h">Available</h4><p class="muted small" style="margin-top:0">Edgerunners Mission Kit quickhacks, plus any your GM made on the Homebrew page.</p>
-        <div class="qh-avail">${avail.map(q => `<div class="qh-av">
-          <div><b>${esc(q.name)}</b> ${q.builtIn ? '<span class="wt mk">Mission Kit</span>' : '<span class="wt hb">★ GM</span>'}
-            ${q.effect ? `<small>${esc(q.effect)}</small>` : ''}</div>
-          <button class="btn sm cyan" data-a="qh-toggle" data-id="${q.id}">+ Learn</button></div>`).join('')}</div>` : ''}
+        ${avail.length ? `<h4 class="pg-h">Available</h4>
+        ${D.QUICKHACK_TIERS.concat(['']).map(tier => {
+          const group = avail.filter(q => (q.tier || '') === tier);
+          if (!group.length) return '';
+          return `<div class="qh-tier">${tier ? esc(tier) : 'Other'}</div><div class="qh-avail">${group.map(q => `<div class="qh-av">
+            <div><b>${esc(q.name)}</b> ${qhBadge(q)}<small>${esc(qhMeta(q))}${q.effect ? ' — ' + esc(q.effect) : ''}</small></div>
+            <button class="btn sm cyan" data-a="qh-toggle" data-id="${q.id}">+ Learn</button></div>`).join('')}</div>`;
+        }).join('')}` : ''}
       </div>
     </div>`;
   }
@@ -564,7 +593,7 @@ CPR.characters = (function () {
             <div><span>Body</span><b>${spB}</b><button class="btn icon sm" data-a="sp-dec" data-loc="body" title="Ablate body armor by 1">−1</button></div>
           </div>
         </div>
-        <div class="pv"><small>HUMANITY</small><b>${d.humanity}</b><span>EMP ${d.empCur} · Run ${d.walk}m/turn</span></div>
+        <div class="pv"><small>HUMANITY</small><b>${d.humanity}</b><span>EMP ${d.empCur} · Run ${d.walk}m/turn${d.tempHumanity ? ` · −${d.tempHumanity} temporary` : ''}</span></div>
       </div>
       ${pens.length ? `<div class="play-pen">⚠ Applied to rolls: ${pens.map(p => esc(p.v ? `${p.label} ${signed(p.v)}` : p.label)).join(' · ')}</div>` : ''}
 
@@ -725,8 +754,15 @@ CPR.characters = (function () {
       case 'qh': case 'qhdmg': {
         const q = quickhacksOf(c)[+arg];
         if (!q) return;
-        if (kind === 'qhdmg') return R.damage({ ...base, label: `${q.name} — Damage`, dice: q.damage, note: q.effect });
-        return R.check({ ...base, label: `⌁ ${q.name}`, parts: qhParts(c, d, q), note: [q.dv ? `vs DV ${q.dv}` : '', q.effect].filter(Boolean).join(' · ') });
+        if (kind === 'qhdmg') return R.damage({ ...base, label: `${q.name} — ${q.dmgLabel || 'Damage'}`, dice: q.damage, note: q.effect });
+        // Prototype strain: every attempt costs temporary Humanity.
+        const st = strainRoll(c, q), strain = st.total;
+        c.tempHumanity = (Number(c.tempHumanity) || 0) + strain;
+        save();
+        R.check({ ...base, label: `⌁ ${q.name}`, parts: qhParts(c, d, q),
+          note: [`Upload vs target's WILL + Concentration + 1d10`, q.dv ? `quickhack DV ${q.dv}` : '', q.effect,
+            `Prototype strain: DV/2 ${st.half} − Interface ${st.iface} + d6 ${st.roll} = −${strain} Humanity (${c.tempHumanity} total until long rest)`].filter(Boolean).join(' · ') });
+        return renderTab();
       }
       case 'brawl-atk': return R.check({ ...base, label: 'Brawling — Attack', parts: skillParts(c, d, 'Brawling') });
       case 'brawl-dmg': return R.damage({ ...base, label: 'Brawling — Damage', dice: brawlDice(c.stats.BODY), note: 'Damage dice set by BODY' });
@@ -1082,7 +1118,7 @@ CPR.characters = (function () {
           <h4>Health</h4>
           <table><tr><td>Hit Points</td><td>${d.hp} / ${d.hpMax}</td></tr>
             <tr><td>Seriously Wounded</td><td>${d.seriously}</td></tr><tr><td>Death Save</td><td>${d.deathSave}</td></tr>
-            <tr><td>Humanity</td><td>${d.humanity} / ${d.humanityMax}</td></tr></table>
+            <tr><td>Humanity</td><td>${d.humanity} / ${d.humanityMax}${d.tempHumanity ? ` (incl. −${d.tempHumanity} temporary)` : ''}</td></tr></table>
           <h4>Armor</h4>
           <table><tr><th>Loc</th><th>Armor</th><th>SP</th></tr>
             <tr><td>Head</td><td>${esc(c.armor.head.name)}</td><td>${c.armor.head.spCurrent}/${c.armor.head.sp}</td></tr>
@@ -1124,7 +1160,7 @@ CPR.characters = (function () {
     const L = [];
     L.push(`${c.handle || 'Unnamed'}${c.name ? ' (' + c.name + ')' : ''} — ${d.role.name}, ${d.role.ability} ${c.roleRank}`);
     L.push(D.STATS.map(s => `${s.id} ${s.id === 'EMP' ? d.empCur + '/' + c.stats.EMP : c.stats[s.id]}`).join('  '));
-    L.push(`HP ${d.hp}/${d.hpMax} | Seriously Wounded ${d.seriously} | Death Save ${d.deathSave} | Humanity ${d.humanity}/${d.humanityMax}`);
+    L.push(`HP ${d.hp}/${d.hpMax} | Seriously Wounded ${d.seriously} | Death Save ${d.deathSave} | Humanity ${d.humanity}/${d.humanityMax}${d.tempHumanity ? ` (incl. -${d.tempHumanity} temporary)` : ''}`);
     L.push(`Armor: Head ${c.armor.head.name} SP${c.armor.head.spCurrent} | Body ${c.armor.body.name} SP${c.armor.body.spCurrent}`);
     L.push('', 'SKILLS');
     D.SKILLS.filter(s => (c.skills[s.name] || 0) > 0).forEach(s => L.push(`  ${s.name} (${s.stat}) ${c.skills[s.name]} → ${statFor(c, d, s.stat) + c.skills[s.name]}`));
@@ -1273,6 +1309,10 @@ CPR.characters = (function () {
       case 'cw-view': cyberView = b.dataset.v; S.write('ui.cyberView', cyberView); renderTab(); break;
       case 'play-skills': playAllSkills = b.dataset.v === '1'; renderTab(); break;
       case 'qh-toggle': toggleQuickhack(b.dataset.id); break;
+      case 'strain-adj':
+        c.tempHumanity = Math.max(0, (Number(c.tempHumanity) || 0) + Number(b.dataset.d));
+        saveNow(); renderTab(); break;
+      case 'strain-clear': c.tempHumanity = 0; U.toast('Temporary Humanity restored'); saveNow(); renderTab(); break;
       case 'pg-add': {
         const p = D.programById[b.dataset.id];
         if (!p) break;

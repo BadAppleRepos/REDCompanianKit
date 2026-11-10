@@ -553,12 +553,49 @@ CPR.DATA.MISSION_KIT_CYBERWARE = [
   { id: 'monowire', name: 'Monowire', cost: null, hl: null, hlDice: '', slots: null, damage: '', skill: 'Melee Weapon', rof: 1, fx: [],
     text: 'A monofilament whip that deploys from the hand, cutting at range from the wielder.' },
 ];
-// base: 'interface' (Netrunner Interface rank) or a skill name.
-CPR.DATA.MISSION_KIT_QUICKHACKS = [
-  { id: 'mk_short_circuit', name: 'Short Circuit', base: 'interface', dv: '', damage: '', cost: '', effect: 'Overloads the target\'s cyberware.' },
-  { id: 'mk_cripple_movement', name: 'Cripple Movement', base: 'interface', dv: '', damage: '', cost: '', effect: 'Impairs the target\'s movement.' },
-  { id: 'mk_reboot', name: 'Reboot', base: 'interface', dv: '', damage: '', cost: '', effect: 'Forces the target\'s cyberbrain to reboot.' },
+/* =========================================================================================== */
+
+/*
+ * ============================ PROTOTYPE QUICKHACKS (table rules) ============================
+ * Built-in quickhacks for this table. In-world they're early "prototypes": every attempt costs
+ * the Netrunner (quickhack DV / 2, rounded down) - Interface rank + 1d6 temporary Humanity, minimum 1,
+ * tracked on the Netrunning tab and cleared on a long rest.
+ *   tier: Simple / Standard / Difficult / Advanced    dv: Quickhack DV    duration: how long it lasts
+ *   damage + dmgLabel: dice to roll for the effect (leave '' if nothing to roll)
+ */
+CPR.DATA.QUICKHACK_SOURCE = 'Prototype quickhack';
+CPR.DATA.QUICKHACK_TIERS = ['Simple', 'Standard', 'Difficult', 'Advanced'];
+CPR.DATA.QUICKHACK_STRAIN = '1d6'; // temporary Humanity per attempt: DV/2 - Interface + this roll, minimum 1
+CPR.DATA.QUICKHACK_STRAIN_TEXT = 'DV ÷ 2 − Interface + 1d6 (min 1)';
+CPR.DATA.QUICKHACK_RULES = [
+  ['Range & access', 'With a neuroport-based cyberdeck, quickhack a target\'s neuroport from up to 50m away.'],
+  ['Upload', 'Contested: your Interface + 1d10 vs the target\'s WILL + Concentration + 1d10.'],
+  ['Detection', 'Targeting a neuroport usually alerts the victim, who can try to boot you out on their turn.'],
+  ['Action economy', 'A quickhack is a NET Action. One quickhack per target per turn.'],
+  ['Prototype strain', 'Every quickhack attempt costs you temporary Humanity equal to its DV ÷ 2 (rounded down), minus your Interface rank, plus 1d6 (minimum 1). It lasts until your next long rest.'],
 ];
+CPR.DATA.QUICKHACKS = [
+  { id: 'mk_sonic_shock', name: 'Sonic Shock', tier: 'Simple', dv: '6', duration: '60 sec (20 rounds)',
+    effect: 'Target suffers the Damaged Ear Critical Injury (can\'t hear or communicate), without its bonus damage.' },
+  { id: 'mk_short_circuit', name: 'Short Circuit', tier: 'Standard', dv: '8', duration: '60 sec (20 rounds)',
+    effect: 'Disables 3 pieces of the target\'s cyberware chosen by the GM (not foundational limbs or neuroports).' },
+  { id: 'mk_overheat', name: 'Overheat', tier: 'Standard', dv: '8', duration: 'Until extinguished',
+    effect: '4 damage straight to HP at the end of each of the target\'s turns, ignoring armor. Putting it out takes a ROF 1 Action.' },
+  { id: 'mk_cyberware_malfunction', name: 'Cyberware Malfunction', tier: 'Difficult', dv: '10', duration: '60 sec (20 rounds)',
+    effect: 'Disables 1 piece of cyberware that you choose.' },
+  { id: 'mk_slow', name: 'Slow', tier: 'Difficult', dv: '10', duration: '60 sec (20 rounds)', damage: '1d6', dmgLabel: 'MOVE lost',
+    effect: 'Lowers the target\'s MOVE by 1d6. At 0 MOVE they can\'t take Move Actions.' },
+  { id: 'mk_synapse_burnout', name: 'Synapse Burnout', tier: 'Difficult', dv: '10', duration: 'Instant', damage: '3d6', dmgLabel: 'damage to HP',
+    effect: '3d6 damage straight to HP. Ignores armor and doesn\'t ablate it.' },
+  { id: 'mk_shard_ejection', name: 'Shard Ejection', tier: 'Advanced', dv: '12', duration: 'Instant',
+    effect: 'Ejects 1 piece of slotted chipware from the target into an adjacent square.' },
+  { id: 'mk_system_reset', name: 'System Reset', tier: 'Advanced', dv: '12', duration: '60 sec (20 rounds)',
+    effect: 'Target falls Prone and stays Unconscious until it ends or they take damage.' },
+  { id: 'mk_puppet', name: 'Puppet', tier: 'Advanced', dv: '12', duration: '1 turn (their next)',
+    effect: 'You take over the target\'s Action and Move Action on their next turn.' },
+];
+// Saves from before these existed: old placeholder ids map onto their replacements.
+CPR.DATA.QUICKHACK_ALIASES = { mk_cripple_movement: 'mk_slow', mk_reboot: 'mk_system_reset' };
 /* =========================================================================================== */
 
 // Turn the Mission Kit table into regular built-in cyberware (Cyberarm options).
