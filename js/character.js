@@ -16,7 +16,7 @@ CPR.characters = (function () {
       handle: '', name: '', role: 'solo', roleRank: R.startingRoleRank, age: '', pronouns: '',
       creationMode: 'package',
       stats, skills, customSkills: [],
-      hpCurrent: null, humanityExtra: 0, deathSaveBonus: 0, deathPenalty: 0, quickhacks: [], deck: '', programs: [], tempHumanity: 0,
+      hpCurrent: null, humanityExtra: 0, deathSaveBonus: 0, deathPenalty: 0, quickhacks: [], deck: '', programs: [], tempHumanity: 0, netMods: {},
       armor: { head: { name: 'None', sp: 0, spCurrent: 0 }, body: { name: 'None', sp: 0, spCurrent: 0 } },
       weapons: [], gear: [],
       cyber: { zones: {} },
@@ -41,6 +41,10 @@ CPR.characters = (function () {
     ['handle', 'name', 'age', 'pronouns', 'notes'].forEach(k => { c[k] = str(c[k]); });
     ['roleRank', 'money', 'ip', 'reputation', 'humanityExtra', 'deathSaveBonus', 'deathPenalty', 'tempHumanity'].forEach(k => { c[k] = num(c[k]); });
     c.tempHumanity = Math.max(0, c.tempHumanity);
+    // Per-roll modifiers (Jack In, Force Out, each quickhack): plain keys, numeric values only.
+    const nm = obj(c.netMods), cleanMods = {};
+    Object.keys(nm).forEach(k => { if (/^[A-Za-z0-9_-]{1,64}$/.test(k) && num(nm[k])) cleanMods[k] = num(nm[k]); });
+    c.netMods = cleanMods;
     c.hpCurrent = c.hpCurrent == null ? null : num(c.hpCurrent, null);
     if (!D.ROLES.some(r => r.id === c.role)) c.role = 'solo';
     if (c.creationMode !== 'free') c.creationMode = 'package';
@@ -420,9 +424,16 @@ CPR.characters = (function () {
   // Character's quickhacks: the GM's latest version if this device has it, otherwise the saved copy.
   const quickhacksOf = c => (c.quickhacks || []).map(s => CPR.quickhacks.get(s.id) || CPR.quickhacks.normalize(s));
   const interfaceRank = c => (c.role === 'netrunner' ? Number(c.roleRank) || 0 : 0);
+  // Per-roll modifier the player typed into a Mod box.
+  const netMod = (c, key) => Number((c.netMods || {})[key]) || 0;
+  const withMod = (parts, c, key) => (netMod(c, key) ? parts.concat({ label: 'modifier', v: netMod(c, key) }) : parts);
+  const modBox = (c, key) => `<label class="mod-box" title="Add or subtract a modifier for this roll"><small>MOD</small><input type="number" data-bind="netMods.${key}" data-rerender="1" value="${netMod(c, key)}"></label>`;
   function qhParts(c, d, q) {
-    return q.base === 'interface' ? [{ label: 'Interface', v: interfaceRank(c) }] : skillParts(c, d, q.base);
+    const parts = q.base === 'interface' ? [{ label: 'Interface', v: interfaceRank(c) }] : skillParts(c, d, q.base);
+    return withMod(parts, c, 'qh_' + q.id);
   }
+  const jackInParts = c => withMod([{ label: 'Interface', v: interfaceRank(c) }], c, 'jackin');
+  const forceOutParts = (c, d) => withMod(skillParts(c, d, 'Concentration'), c, 'forceout');
 
   // Prototype strain: quickhack DV / 2 (rounded down) - Interface rank + 1d6, never less than 1.
   function strainBase(c, q) { return Math.floor((parseInt(q.dv, 10) || 0) / 2) - interfaceRank(c); }
@@ -442,7 +453,8 @@ CPR.characters = (function () {
         <small>${esc(qhMeta(q))} · <span class="strain-tag">Strain ${strainRange(c, q)}</span></small>
         ${q.effect ? `<div class="qh-effect">${esc(q.effect)}</div>` : ''}</div>
       <div class="pw-btns">
-        <button class="roll-btn qh" data-roll="qh:${i}" title="Upload: Interface + 1d10 (costs ${D.QUICKHACK_STRAIN_TEXT} temporary Humanity)"><small>HACK</small>${signed(sum(qhParts(c, d, q)))}</button>
+        ${modBox(c, 'qh_' + q.id)}
+        <button class="roll-btn qh" data-roll="qh:${i}" title="Interface + 1d10 must be greater than DV ${esc(q.dv || '?')} (costs ${D.QUICKHACK_STRAIN_TEXT} temporary Humanity)"><small>HACK</small>${signed(sum(qhParts(c, d, q)))}</button>
         ${q.damage ? `<button class="roll-btn dmg" data-roll="qhdmg:${i}" title="${esc(q.dmgLabel || 'Damage')}"><small>${esc((q.dmgLabel || 'DMG').split(' ')[0].toUpperCase())}</small>${esc(q.damage)}</button>` : ''}
         <button class="btn sm ghost" data-a="qh-toggle" data-id="${q.id}" title="Remove from this character">Forget</button>
       </div></div>`;
@@ -517,6 +529,14 @@ CPR.characters = (function () {
         <h3>⌁ Quickhacks</h3>
         <details class="qh-rules"><summary>How quickhacking works</summary>
           <dl>${D.QUICKHACK_RULES.map(([t, x]) => `<dt>${esc(t)}</dt><dd>${esc(x)}</dd>`).join('')}</dl></details>
+        <div class="net-steps">
+          <div class="net-step"><div class="ns-text"><b>1. Jack In</b>
+            <small>Interface + 1d10 vs the target's WILL + 1d10. Firewall DV ${D.FIREWALL_DV}: ${interfaceRank(c) >= D.FIREWALL_AUTO_PASS ? 'passed automatically (Interface 3+)' : 'you must also beat it'}. Failing only alerts the target.</small></div>
+            ${modBox(c, 'jackin')}<button class="roll-btn qh" data-roll="jackin"><small>JACK IN</small>${signed(sum(jackInParts(c)))}</button></div>
+          <div class="net-step defend"><div class="ns-text"><b>Force Out <span class="muted">(when you're being hacked)</span></b>
+            <small>WILL + Concentration + 1d10 vs the Netrunner's Interface + 1d10. Costs 1 Action (ROF 1). Win: they jack out unsafely, locked out 60 min.</small></div>
+            ${modBox(c, 'forceout')}<button class="roll-btn" data-roll="forceout"><small>FORCE OUT</small>${signed(sum(forceOutParts(c, d)))}</button></div>
+        </div>
         <div class="strain ${d.tempHumanity ? 'on' : ''}">
           <div><small>PROTOTYPE STRAIN</small><b>${d.tempHumanity}</b><span>temporary Humanity lost · Humanity now ${d.humanity}/${d.humanityMax}</span></div>
           <div class="row">
@@ -751,6 +771,15 @@ CPR.characters = (function () {
         const two = which === '2';
         return R.damage({ ...base, label: `${pg.name} — ${two ? pg.dmg2Label : pg.dmgLabel}`, dice: two ? pg.damage2 : pg.damage, note: pg.text });
       }
+      case 'jackin': {
+        const iface = interfaceRank(c), auto = iface >= D.FIREWALL_AUTO_PASS;
+        return R.check({ ...base, label: '⌁ Jack In', parts: jackInParts(c), dv: auto ? null : D.FIREWALL_DV,
+          note: (auto ? `Firewall DV ${D.FIREWALL_DV} passed automatically (Interface ${iface}). ` : `Must beat Firewall DV ${D.FIREWALL_DV}. `)
+            + "Then contest the target's WILL + 1d10: higher wins. Failing only alerts the target." });
+      }
+      case 'forceout':
+        return R.check({ ...base, label: 'Force Out', parts: forceOutParts(c, d),
+          note: "Vs the Netrunner's Interface + 1d10; higher wins. Costs 1 Action (ROF 1). If you win, they jack out unsafely and are locked out for 60 minutes." });
       case 'qh': case 'qhdmg': {
         const q = quickhacksOf(c)[+arg];
         if (!q) return;
@@ -759,8 +788,8 @@ CPR.characters = (function () {
         const st = strainRoll(c, q), strain = st.total;
         c.tempHumanity = (Number(c.tempHumanity) || 0) + strain;
         save();
-        R.check({ ...base, label: `⌁ ${q.name}`, parts: qhParts(c, d, q),
-          note: [`Upload vs target's WILL + Concentration + 1d10`, q.dv ? `quickhack DV ${q.dv}` : '', q.effect,
+        R.check({ ...base, label: `⌁ ${q.name}`, parts: qhParts(c, d, q), dv: parseInt(q.dv, 10) || null,
+          note: [q.dv ? `Needs more than DV ${q.dv}` : '', q.duration ? `Lasts ${q.duration}` : '', q.effect,
             `Prototype strain: DV/2 ${st.half} − Interface ${st.iface} + d6 ${st.roll} = −${strain} Humanity (${c.tempHumanity} total until long rest)`].filter(Boolean).join(' · ') });
         return renderTab();
       }

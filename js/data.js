@@ -567,11 +567,14 @@ CPR.DATA.QUICKHACK_SOURCE = 'Prototype quickhack';
 CPR.DATA.QUICKHACK_TIERS = ['Simple', 'Standard', 'Difficult', 'Advanced'];
 CPR.DATA.QUICKHACK_STRAIN = '1d6'; // temporary Humanity per attempt: DV/2 - Interface + this roll, minimum 1
 CPR.DATA.QUICKHACK_STRAIN_TEXT = 'DV ÷ 2 − Interface + 1d6 (min 1)';
+// Jack In / Force Out thresholds used by the rolls on the Netrunning tab.
+CPR.DATA.FIREWALL_DV = 6;          // base firewall when jacking into a neuroport
+CPR.DATA.FIREWALL_AUTO_PASS = 3;   // Interface rank that passes the base firewall automatically
 CPR.DATA.QUICKHACK_RULES = [
   ['Range & access', 'With a neuroport-based cyberdeck, quickhack a target\'s neuroport from up to 50m away.'],
-  ['Upload', 'Contested: your Interface + 1d10 vs the target\'s WILL + Concentration + 1d10.'],
-  ['Detection', 'Targeting a neuroport usually alerts the victim, who can try to boot you out on their turn.'],
-  ['Action economy', 'A quickhack is a NET Action. One quickhack per target per turn.'],
+  ['1. Jack In', 'Your Interface + 1d10 vs the target\'s WILL + 1d10. Base Firewall is DV 6 (passed automatically at Interface 3+). Failing only alerts the target.'],
+  ['2. Run a quickhack', 'Your Interface + 1d10 must be greater than the quickhack\'s DV. A NET Action; one quickhack per target per turn.'],
+  ['3. Force Out', 'The target can spend an Action (ROF 1): their WILL + Concentration + 1d10 vs your Interface + 1d10. If they win, you jack out unsafely and are locked out for 60 minutes.'],
   ['Prototype strain', 'Every quickhack attempt costs you temporary Humanity equal to its DV ÷ 2 (rounded down), minus your Interface rank, plus 1d6 (minimum 1). It lasts until your next long rest.'],
 ];
 CPR.DATA.QUICKHACKS = [

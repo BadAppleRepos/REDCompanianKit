@@ -57,7 +57,7 @@ CPR.roller = (function () {
       </div>
       <div class="rp-hist">
         <div class="row"><small>HISTORY</small><span class="spacer"></span>${hist.length ? '<button class="btn sm ghost" data-clear>Clear</button>' : ''}</div>
-        ${hist.map(h => `<div class="rp-item ${h.crit ? 'crit' : ''} ${h.fumble ? 'fumble' : ''}">
+        ${hist.map(h => `<div class="rp-item ${h.crit ? 'crit' : ''} ${h.fumble ? 'fumble' : ''} ${h.pass === true ? 'pass' : h.pass === false ? 'fail' : ''}">
           <div><b>${esc(h.label)}</b> <span class="muted">${esc(h.who || '')}</span><div class="rp-detail">${esc(h.detail)}</div></div>
           <span class="rp-total">${h.total}</span></div>`).join('') || '<p class="muted small">No rolls yet — tap a stat, skill or weapon.</p>'}
       </div>`;
@@ -76,7 +76,14 @@ CPR.roller = (function () {
     const base = parts.reduce((a, p) => a + p.v, 0);
     const die = r.crit ? `d10: 10, +${r.rolls[1]}` : r.fumble ? `d10: 1, −${-r.rolls[1]}` : `d10: ${r.rolls[0]}`;
     const detail = parts.map((p, i) => `${i ? sign(p.v) : p.v} ${p.label}`).join(' ') + ` ${sign(r.total)} (${die})`;
-    return show({ ...o, kind: 'check', total: base + r.total, base, die: r.total, crit: r.crit, fumble: r.fumble, detail });
+    const total = base + r.total;
+    // With a DV, the roll must be greater than it to succeed.
+    let pass = null, flag = o.flag;
+    if (o.dv != null && o.dv !== '' && !isNaN(Number(o.dv))) {
+      pass = total > Number(o.dv);
+      flag = `${pass ? 'SUCCESS' : 'FAILED'} vs DV ${o.dv}${r.crit ? ' · CRIT' : r.fumble ? ' · FUMBLE' : ''}`;
+    }
+    return show({ ...o, kind: 'check', total, base, die: r.total, crit: r.crit, fumble: r.fumble, detail, pass, flag });
   }
 
   /*
@@ -103,7 +110,7 @@ CPR.roller = (function () {
     clearTimeout(hideTimer);
     clearInterval(anim);
     const flag = e.flag != null && e.flag !== '' ? e.flag : e.crit ? 'CRITICAL SUCCESS' : e.fumble ? 'CRITICAL FAILURE' : '';
-    card.className = `roll-card show ${e.crit ? 'crit' : ''} ${e.fumble ? 'fumble' : ''} ${e.kind === 'damage' ? 'dmg' : ''}`;
+    card.className = `roll-card show ${e.crit ? 'crit' : ''} ${e.fumble ? 'fumble' : ''} ${e.kind === 'damage' ? 'dmg' : ''} ${e.pass === true ? 'pass' : e.pass === false ? 'fail' : ''}`;
     card.innerHTML = `
       <div class="rc-head"><span>${esc(e.who || '')}</span><b>${esc(e.label)}</b></div>
       <div class="rc-total">${e.total}</div>
