@@ -86,6 +86,11 @@ CPR.ui = (function () {
     });
   }
 
+  // Link to R. Talsorian's Night Market Index PDF (opens in a new tab / the phone's PDF viewer).
+  function nightMarketLink(what) {
+    return `<a class="nm-link" href="${CPR.DATA.NIGHT_MARKET_INDEX}" target="_blank" rel="noopener" title="R. Talsorian's free Night Market Index (PDF): find more ${what || 'gear'} and which book it's in">📖 Night Market Index</a>`;
+  }
+
   function safeName(s) { return (s || 'untitled').replace(/[^a-z0-9_\-]+/gi, '_').slice(0, 40); }
 
   /* ---- dice ---- */
@@ -116,5 +121,5 @@ CPR.ui = (function () {
     return { total: first, rolls: [first] };
   }
 
-  return { esc, toast, modal, confirm, saveFile, pickFile, safeName, roll, rollD10Check, d };
+  return { esc, toast, modal, confirm, saveFile, pickFile, safeName, nightMarketLink, roll, rollD10Check, d };
 })();

@@ -147,6 +147,7 @@ CPR.ripperdoc = (function () {
         <div class="rd-kpi"><small>EUROBUCKS</small><b>${Number(c.money).toLocaleString()}</b></div>
         <div class="rd-kpi"><small>CHROME VALUE</small><b>${d.cyberCost.toLocaleString()}</b></div>
         <div class="rd-kpi"><small>INSTALLED</small><b>${d.cyber.length}</b></div>
+        <div class="rd-nm">${U.nightMarketLink('cyberware')}</div>
       </div>
       ${humanityBar(c, d)}
       <div class="rd-main">

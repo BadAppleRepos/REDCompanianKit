@@ -13,3 +13,5 @@ Desktop.ini
 redkit_*.json
 *.redmap.json
 *.homebrew.json
+redcompanion_*.json
+*.redcompanion.json

@@ -357,8 +357,8 @@ CPR.homebrew = (function () {
 
   /* ---------- import / export ---------- */
   function exportAll() {
-    U.saveFile('redkit_homebrew.json', JSON.stringify({
-      app: 'RED Kit', type: 'homebrew', homebrew: C.list(), quickhacks: Q.library(), tableRules: CPR.tableRules.all(),
+    U.saveFile('redcompanion_homebrew.json', JSON.stringify({
+      app: 'Red Companion', type: 'homebrew', homebrew: C.list(), quickhacks: Q.library(), tableRules: CPR.tableRules.all(),
     }, null, 2));
   }
 
@@ -389,7 +389,7 @@ CPR.homebrew = (function () {
         case 'new-qh': return qhEditor(null);
         case 'import': return importFile();
         case 'export': return exportAll();
-        case 'share': { const h = C.snapshot(id); return U.saveFile(U.safeName(h.name) + '.homebrew.json', JSON.stringify({ app: 'RED Kit', type: 'homebrew', homebrew: [h] }, null, 2)); }
+        case 'share': { const h = C.snapshot(id); return U.saveFile(U.safeName(h.name) + '.homebrew.json', JSON.stringify({ app: 'Red Companion', type: 'homebrew', homebrew: [h] }, null, 2)); }
         case 'dup': { const h = C.snapshot(id); h.id = CPR.store.uid('hb'); h.name += ' (copy)'; C.save(h); render(); return; }
         case 'del': {
           const h = C.snapshot(id);

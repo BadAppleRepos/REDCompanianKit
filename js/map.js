@@ -590,7 +590,7 @@ CPR.map = (function () {
             if (!m || !m.cols || !m.rows) throw 0;
             const nm = sanitize(m);
             S.put(KEY, nm); S.write('map.current', nm.id); loadCurrent(); renderSide(); fit(); U.toast('Map imported');
-          } catch (err) { U.toast('That file is not a RED Kit map'); }
+          } catch (err) { U.toast('That file is not a Red Companion map'); }
         });
         break;
       case 'clear':

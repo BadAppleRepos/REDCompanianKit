@@ -40,7 +40,7 @@
     deferredPrompt = e;
     installBtn.hidden = false;
   });
-  window.addEventListener('appinstalled', () => { installBtn.hidden = true; CPR.ui.toast('RED Kit installed'); });
+  window.addEventListener('appinstalled', () => { installBtn.hidden = true; CPR.ui.toast('Red Companion installed'); });
   installBtn.addEventListener('click', async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
@@ -50,11 +50,11 @@
       return;
     }
     CPR.ui.modal({
-      title: 'Install RED Kit',
+      title: 'Install Red Companion',
       body: `<ol class="install-steps">
         <li>Tap the <b>Share</b> button (the square with an arrow) in Safari.</li>
         <li>Choose <b>Add to Home Screen</b>.</li>
-        <li>Tap <b>Add</b>. RED Kit opens full-screen and works offline.</li></ol>
+        <li>Tap <b>Add</b>. Red Companion opens full-screen and works offline.</li></ol>
         <p class="muted small">Your characters stay on this device. Use Export to back them up.</p>`,
     });
   });

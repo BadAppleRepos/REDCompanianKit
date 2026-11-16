@@ -717,6 +717,18 @@ body:not([data-view="characters"]) .roll-fab, body:not([data-view="characters"])
 .strain-tag { color: var(--orange); font-weight: 700; }
 .qh-tier { margin: 10px 0 4px; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); }
 
+/* ---------- Night Market Index link ---------- */
+.nm-link {
+  display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; padding: 2px 8px; border-radius: 99px;
+  border: 1px solid rgba(247, 226, 27, .45); color: var(--yellow); text-decoration: none; font-size: 12px; font-weight: 700;
+  white-space: nowrap; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: 0; text-transform: none;
+}
+.nm-link:hover { background: rgba(247, 226, 27, .12); }
+p .nm-link { margin-left: 0; }
+.rd-nm { align-self: center; }
+.rd-nm .nm-link { margin-left: 0; }
+@media (max-width: 760px) { .brand { font-size: 15px; } }
+
 /* ---------- gear value ---------- */
 .gear-value { width: 100%; border-collapse: collapse; margin: 10px 0 6px; font-size: 14px; }
 .gear-value td { padding: 3px 0; border-bottom: 1px solid var(--line); }

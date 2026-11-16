@@ -1025,6 +1025,7 @@ CPR.characters = (function () {
           <div class="body-map">${bodySvg(c)}</div>
           <div>
             <h3>Chrome Summary</h3>
+            <p class="small" style="margin:0 0 6px">${U.nightMarketLink('cyberware')} <span class="muted">for more cyberware and which book it's in.</span></p>
             <div class="row"><span class="badge cyan">${d.cyber.length} pieces</span>
               <span class="badge">Cost <b data-d="cyberCost"></b> eb</span>
               <span class="badge warn">Humanity Loss ${d.hlCyber}</span>
@@ -1083,7 +1084,7 @@ CPR.characters = (function () {
         <p class="muted small">Complete Package starting funds: ${R.startingMoney.toLocaleString()}eb for weapons, armor, cyberware & gear. Prices are for standard-quality items; edit a cost for anything better, worse or second-hand.</p>
       </div>
       <div class="panel" style="grid-column:1/-1">
-        <div class="row"><h3 style="margin:0">Weapons</h3><span class="spacer"></span>
+        <div class="row"><h3 style="margin:0">Weapons</h3>${U.nightMarketLink('weapons')}<span class="spacer"></span>
           <select id="weapon-pick" style="max-width:220px"><option value="">+ Add weapon…</option>${D.WEAPONS.map((w, i) => `<option value="${i}">${esc(w.name)} (${w.damage}, ${w.cost.toLocaleString()}eb)</option>`).join('')}<option value="custom">Custom weapon</option></select></div>
         <div class="scroll-x"><table class="list-table" style="margin-top:8px;min-width:980px">
           <tr><th>Name</th><th>Skill</th><th>Type</th><th>Dmg</th><th title="Replaces the base damage dice, e.g. 4d6">Override</th><th title="Flat amount added to the damage roll">Modifier</th><th>ROF</th><th>Mag</th><th title="Price paid (standard quality by default)">Cost</th><th>Base</th><th>Notes</th><th></th></tr>
@@ -1178,7 +1179,7 @@ CPR.characters = (function () {
       </div>
       ${lp.length ? `<h4>Lifepath</h4><table>${lp.map(([k, l]) => `<tr><td style="width:35%">${esc(l)}</td><td>${esc(c.lifepath[k])}</td></tr>`).join('')}</table>` : ''}
       ${c.notes ? `<h4>Notes</h4><div style="white-space:pre-wrap">${esc(c.notes)}</div>` : ''}
-      <div class="legal-line">Made with RED Kit. RED Kit is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.</div>
+      <div class="legal-line">Made with Red Companion. Red Companion is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.</div>
     </div>`;
   }
 
@@ -1209,7 +1210,7 @@ CPR.characters = (function () {
     L.push('', `Eurobucks ${c.money} | Gear & chrome value ${gearValue(c, d)}eb | IP ${c.ip} | Reputation ${c.reputation}`);
     D.LIFEPATH_FIELDS.filter(([k]) => c.lifepath[k]).forEach(([k, l], i) => { if (!i) L.push('', 'LIFEPATH'); L.push(`  ${l}: ${c.lifepath[k]}`); });
     if (c.notes) L.push('', 'NOTES', c.notes);
-    L.push('', '— Made with RED Kit. RED Kit is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.');
+    L.push('', '— Made with Red Companion. Red Companion is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.');
     return L.join('\n');
   }
 
@@ -1222,7 +1223,7 @@ CPR.characters = (function () {
           <button class="btn" data-a="export-txt">⇩ Plain text (.txt)</button>
           <button class="btn" data-a="copy-txt">⧉ Copy as text</button>
         </div>
-        <p class="muted small" style="margin-bottom:0">The .json file can be imported back into RED Kit on any device (Characters → Import). Use Print → "Save as PDF" for a printable sheet.</p>
+        <p class="muted small" style="margin-bottom:0">The .json file can be imported back into Red Companion on any device (Characters → Import). Use Print → "Save as PDF" for a printable sheet.</p>
       </div>
       ${sheetHtml(c, d)}`;
   }
@@ -1383,7 +1384,7 @@ CPR.characters = (function () {
         const nc = blank(); S.put(KEY, nc); tab = 'identity'; open(nc.id); break;
       }
       case 'import': importFile(); break;
-      case 'export-all': U.saveFile('redkit_characters.json', JSON.stringify({ app: 'RED Kit', characters: S.list(KEY) }, null, 2)); break;
+      case 'export-all': U.saveFile('redcompanion_characters.json', JSON.stringify({ app: 'Red Companion', characters: S.list(KEY) }, null, 2)); break;
       case 'back': saveNow(); renderList(); break;
       case 'delete':
         U.confirm('Delete character?', `${c.handle || 'This character'} will be removed from this device. Export it first if you want a backup.`, 'Delete', () => {
@@ -1423,7 +1424,7 @@ CPR.characters = (function () {
         saveNow(); renderTab(); break;
       case 'export-json':
         saveNow();
-        U.saveFile(`${U.safeName(c.handle)}.redkit.json`, JSON.stringify(c, null, 2));
+        U.saveFile(`${U.safeName(c.handle)}.redcompanion.json`, JSON.stringify(c, null, 2));
         break;
       case 'export-txt': U.saveFile(`${U.safeName(c.handle)}.txt`, sheetText(c, derive(c)), 'text/plain'); break;
       case 'copy-txt':

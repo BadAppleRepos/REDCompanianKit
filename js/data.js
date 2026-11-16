@@ -646,3 +646,6 @@ CPR.DATA.CYBERWARE.forEach(c => {
 });
 
 CPR.DATA.cyberById = Object.fromEntries(CPR.DATA.CYBERWARE.map(c => [c.id, c]));
+
+// R. Talsorian's free Night Market Index (official PDF): every weapon, cyberware and gear item across the line.
+CPR.DATA.NIGHT_MARKET_INDEX = 'https://rtalsoriangames.com/wp-content/uploads/2025/12/RTG-CPR-DLC-NightMarketIndexv1.23.pdf';

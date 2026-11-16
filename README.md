@@ -1,7 +1,7 @@
 # Intro
 Hi this was created with the intention of just a few friends and I using it as a first time Cyberpunk RED player. Not intended as a commercial product. It is more a rough prototype or a proof of concept rather than an End-To-End App.
 
-# RED Kit
+# Red Companion
 
 *A companion app for use with Cyberpunk RED.*
 
@@ -17,6 +17,7 @@ An installable web app (PWA) for use with Cyberpunk RED. It runs on Windows, iPh
 - **Cyberware by body part, picked from dropdowns**: neuralware, chipware, each eye, ears, each arm, each leg, internal, external, fashionware and borgware. A foundation (Neural Link, Cybereye, Cyberarm…) unlocks its option slots. Slot use is tracked, and options that don't fit are greyed out. Humanity Loss uses the average by default; you can roll it (🎲) or type your own number. A **Custom…** entry is available everywhere.
 - Weapons, armor (with SP ablation), gear, money, IP, reputation, lifepath and notes.
 - **Prices:** weapons and armor show their core-rulebook base price (standard quality) when you pick them, with an editable Cost for better, worse or second-hand gear. The Gear tab totals weapons, armor and cyberware, and an optional "pay from eurobucks" setting deducts purchases automatically. Older saves get base prices filled in for standard items.
+- **Night Market Index:** the Gear tab's Weapons section and the Cyberware tab (Ripperdoc and list views) link to [R. Talsorian's free Night Market Index](https://rtalsoriangames.com/wp-content/uploads/2025/12/RTG-CPR-DLC-NightMarketIndexv1.23.pdf), which lists weapons, cyberware and gear across the Cyberpunk RED books.
 - **Export**: a `.json` character file (re-importable on any device), Print / Save as PDF, plain text, or copy to clipboard.
 
 **Rolling from the character sheet (Play tab)**
@@ -66,7 +67,7 @@ An installable web app (PWA) for use with Cyberpunk RED. It runs on Windows, iPh
 
 ### Install it like an app (Windows, Android, iPhone)
 Once it's hosted (GitHub Pages, see below), an **⇩ Install** button appears in the top bar:
-- **Windows (Edge / Chrome) and Android (Chrome):** click **Install**. RED Kit gets its own window, a Start-menu / home-screen icon, and works offline.
+- **Windows (Edge / Chrome) and Android (Chrome):** click **Install**. Red Companion gets its own window, a Start-menu / home-screen icon, and works offline.
 - **iPhone / iPad (Safari):** tap **Install** for the steps: Share → **Add to Home Screen**.
 
 You can also open `index.html` directly on a PC with no install. Everything works, but there's no offline install.
@@ -104,6 +105,6 @@ sw.js, manifest.webmanifest, icons/   installable-app (PWA) support
 
 ## Legal
 
-RED Kit is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.
+Red Companion is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.
 
-RED Kit is free and always will be. It contains no text, art or logos from R. Talsorian Games products: cyberware and rule descriptions are short summaries written for this app. Fonts: Rajdhani (SIL Open Font License, via Google Fonts). Icons were made for this project.
+Red Companion is free and always will be. It contains no text, art or logos from R. Talsorian Games products: cyberware and rule descriptions are short summaries written for this app. Fonts: Rajdhani (SIL Open Font License, via Google Fonts). Icons were made for this project.

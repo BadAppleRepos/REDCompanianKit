@@ -1,6 +1,6 @@
 {
-  "name": "RED Kit",
-  "short_name": "RED Kit",
+  "name": "Red Companion",
+  "short_name": "Red Companion",
   "description": "Character builder, combat tracker and grid maps for use with Cyberpunk RED. Unofficial; not approved or endorsed by R. Talsorian Games.",
   "id": "./",
   "start_url": "./index.html",
