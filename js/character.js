@@ -21,7 +21,7 @@ CPR.characters = (function () {
       weapons: [], gear: [],
       cyber: { zones: {} },
       lifepath: {}, notes: '',
-      money: R.startingMoney, ip: 0, reputation: 0,
+      money: R.startingMoney, ip: 0, reputation: 0, traumaTeam: '',
       created: Date.now(),
     };
   }
@@ -41,6 +41,7 @@ CPR.characters = (function () {
     ['handle', 'name', 'age', 'pronouns', 'notes'].forEach(k => { c[k] = str(c[k]); });
     ['roleRank', 'money', 'ip', 'reputation', 'humanityExtra', 'deathSaveBonus', 'deathPenalty', 'tempHumanity'].forEach(k => { c[k] = num(c[k]); });
     c.tempHumanity = Math.max(0, c.tempHumanity);
+    if (!D.TRAUMA_TEAM.some(t => t.id === c.traumaTeam)) c.traumaTeam = '';
     // Per-roll modifiers (Jack In, Force Out, each quickhack): plain keys, numeric values only.
     const nm = obj(c.netMods), cleanMods = {};
     Object.keys(nm).forEach(k => { if (/^[A-Za-z0-9_-]{1,64}$/.test(k) && num(nm[k])) cleanMods[k] = num(nm[k]); });
@@ -835,6 +836,16 @@ CPR.characters = (function () {
           <label class="field" title="Extra humanity lost (or regained as a negative number) outside of cyberware">Extra Hum. Loss<input type="number" data-bind="humanityExtra" value="${c.humanityExtra}"></label>
         </div>
       </div>
+      <div class="panel">
+        <h3>Trauma Team</h3>
+        <div class="row" style="align-items:flex-end;gap:10px;flex-wrap:wrap">
+          <label class="field" style="flex:1;min-width:180px">Membership<select data-bind="traumaTeam" data-rerender="1">
+            <option value="" ${!c.traumaTeam ? 'selected' : ''}>None</option>
+            ${D.TRAUMA_TEAM.map(t => `<option value="${t.id}" ${t.id === c.traumaTeam ? 'selected' : ''}>${t.name} — ${t.cost.toLocaleString()}eb / month</option>`).join('')}
+          </select></label>
+          ${traumaTeamOf(c) ? `<button class="btn sm" data-a="tt-pay" title="Subtract this month's dues from your eurobucks">Pay ${traumaTeamOf(c).cost.toLocaleString()}eb dues</button>` : ''}
+        </div>
+      </div>
       <div class="panel" style="grid-column:1/-1">
         <h3>Notes</h3>
         <textarea data-bind="notes" rows="5" placeholder="Anything else…">${esc(c.notes)}</textarea>
@@ -1174,7 +1185,7 @@ CPR.characters = (function () {
           <h4>Gear</h4>
           <table>${c.gear.map(g => `<tr><td>${esc(g.name)}</td><td>×${g.qty}</td><td>${esc(g.notes || '')}</td></tr>`).join('') || '<tr><td>—</td></tr>'}</table>
           <h4>Resources</h4>
-          <table><tr><td>Eurobucks</td><td>${Number(c.money).toLocaleString()}eb</td></tr><tr><td>Gear & chrome value</td><td>${gearValue(c, d).toLocaleString()}eb</td></tr><tr><td>IP</td><td>${c.ip}</td></tr><tr><td>Reputation</td><td>${c.reputation}</td></tr></table>
+          <table><tr><td>Eurobucks</td><td>${Number(c.money).toLocaleString()}eb</td></tr><tr><td>Gear & chrome value</td><td>${gearValue(c, d).toLocaleString()}eb</td></tr><tr><td>IP</td><td>${c.ip}</td></tr><tr><td>Reputation</td><td>${c.reputation}</td></tr><tr><td>Trauma Team</td><td>${esc(traumaTeamLabel(c))}</td></tr></table>
         </div>
       </div>
       ${lp.length ? `<h4>Lifepath</h4><table>${lp.map(([k, l]) => `<tr><td style="width:35%">${esc(l)}</td><td>${esc(c.lifepath[k])}</td></tr>`).join('')}</table>` : ''}
@@ -1182,6 +1193,9 @@ CPR.characters = (function () {
       <div class="legal-line">Made with Red Companion. Red Companion is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.</div>
     </div>`;
   }
+
+  const traumaTeamOf = c => D.TRAUMA_TEAM.find(t => t.id === c.traumaTeam) || null;
+  const traumaTeamLabel = c => { const t = traumaTeamOf(c); return t ? `${t.name} (${t.cost.toLocaleString()}eb/month)` : 'None'; };
 
   const gearValue = (c, d) => c.weapons.reduce((a, w) => a + (Number(w.cost) || 0), 0)
     + (Number(c.armor.head.cost) || 0) + (Number(c.armor.body.cost) || 0) + d.cyberCost;
@@ -1207,7 +1221,7 @@ CPR.characters = (function () {
     d.cyber.forEach(x => L.push(`  [${x.zone.label.split(' — ')[0]}] ${x.info.name} (HL ${x.info.hl})`));
     L.push('', 'GEAR');
     c.gear.forEach(g => L.push(`  ${g.name} x${g.qty}${g.notes ? ' — ' + g.notes : ''}`));
-    L.push('', `Eurobucks ${c.money} | Gear & chrome value ${gearValue(c, d)}eb | IP ${c.ip} | Reputation ${c.reputation}`);
+    L.push('', `Eurobucks ${c.money} | Gear & chrome value ${gearValue(c, d)}eb | IP ${c.ip} | Reputation ${c.reputation} | Trauma Team ${traumaTeamLabel(c)}`);
     D.LIFEPATH_FIELDS.filter(([k]) => c.lifepath[k]).forEach(([k, l], i) => { if (!i) L.push('', 'LIFEPATH'); L.push(`  ${l}: ${c.lifepath[k]}`); });
     if (c.notes) L.push('', 'NOTES', c.notes);
     L.push('', '— Made with Red Companion. Red Companion is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.');
@@ -1409,6 +1423,13 @@ CPR.characters = (function () {
       case 'del-weapon': c.weapons.splice(+b.dataset.i, 1); saveNow(); renderTab(); break;
       case 'add-gear': c.gear.push({ name: '', qty: 1, notes: '' }); saveNow(); renderTab(); break;
       case 'del-gear': c.gear.splice(+b.dataset.i, 1); saveNow(); renderTab(); break;
+      case 'tt-pay': {
+        const t = traumaTeamOf(c);
+        if (!t) break;
+        c.money = (Number(c.money) || 0) - t.cost;
+        U.toast(`Paid ${t.cost.toLocaleString()}eb Trauma Team ${t.name} dues${c.money < 0 ? ' (eurobucks now negative)' : ''}`);
+        saveNow(); renderTab(); break;
+      }
       case 'repair-armor': c.armor.head.spCurrent = c.armor.head.sp; c.armor.body.spCurrent = c.armor.body.sp; saveNow(); renderTab(); break;
       case 'roll-hl': {
         const z = zoneState(c, b.dataset.zone);

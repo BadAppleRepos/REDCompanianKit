@@ -649,3 +649,11 @@ CPR.DATA.cyberById = Object.fromEntries(CPR.DATA.CYBERWARE.map(c => [c.id, c]));
 
 // R. Talsorian's free Night Market Index (official PDF): every weapon, cyberware and gear item across the line.
 CPR.DATA.NIGHT_MARKET_INDEX = 'https://rtalsoriangames.com/wp-content/uploads/2025/12/RTG-CPR-DLC-NightMarketIndexv1.23.pdf';
+
+// Trauma Team membership tiers (monthly dues in eurobucks).
+CPR.DATA.TRAUMA_TEAM = [
+  { id: 'silver', name: 'Silver', cost: 500 },
+  { id: 'gold', name: 'Gold', cost: 1000 },
+  { id: 'platinum', name: 'Platinum', cost: 2000 },
+  { id: 'diamond', name: 'Diamond', cost: 5000 },
+];
