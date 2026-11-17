@@ -62,6 +62,7 @@ An installable web app (PWA) for use with Cyberpunk RED. It runs on Windows, iPh
 - **Combat tracker**: initiative (REF + 1d10, plus Kerenzikov), turn and round order, damage with armor (head ×2, ½ SP for melee, +5 crit injury, SP ablation), wound states, death saves, heal, conditions and a combat log. Player HP syncs back to the character sheet.
 - **Maps**: **square or hex grid** (switchable), terrain painting (brush or rectangle), tokens (or place everyone from the combat tracker, with HP bars), measuring in cells and meters (2m per cell), fog of war with a player view, background image upload, undo, and PNG / map-file export.
 - **Dice roller**: skill checks with exploding/imploding d10 against a DV, and damage dice that flag critical injuries.
+- **Guides**: step-by-step quick references for a combat round (Initiative, Turns, attacks, damage, armor, wounds, Death Saves) and a NET run (Jack In, NET Actions by Interface rank, floors, Black ICE, Jack Out), plus the prototype quickhacking rules. Each step is a short summary in our own words; check the core rules for full details.
 
 ## Running it
 
@@ -99,6 +100,7 @@ js/character.js       character builder + export
 js/combat.js          combat tracker
 js/map.js             grid map editor
 js/dice.js            dice roller
+js/guides.js          combat & NET step-by-step guides
 js/app.js             navigation + service worker registration
 sw.js, manifest.webmanifest, icons/   installable-app (PWA) support
 ```

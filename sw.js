@@ -1,9 +1,9 @@
 /* Service worker: caches the app so it works offline once installed. Bump VERSION when files change. */
-const VERSION = 'redcompanion-v19';
+const VERSION = 'redcompanion-v20';
 const FILES = [
   './', './index.html', './manifest.webmanifest', './css/styles.css',
   './js/data.js', './js/store.js', './js/ui.js', './js/roller.js', './js/homebrew.js', './js/character.js', './js/ripperdoc.js', './js/combat.js',
-  './js/map.js', './js/dice.js', './js/app.js',
+  './js/map.js', './js/dice.js', './js/guides.js', './js/app.js',
   './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png',
 ];
 

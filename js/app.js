@@ -1,6 +1,6 @@
 /* App shell: navigation between views and offline support. */
 (function () {
-  const modules = { characters: CPR.characters, combat: CPR.combat, map: CPR.map, homebrew: CPR.homebrew, dice: CPR.dice };
+  const modules = { characters: CPR.characters, combat: CPR.combat, map: CPR.map, homebrew: CPR.homebrew, guides: CPR.guides, dice: CPR.dice };
 
   Object.entries(modules).forEach(([k, m]) => m.mount(document.getElementById('view-' + k)));
 

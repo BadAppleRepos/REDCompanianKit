@@ -754,3 +754,22 @@ body[data-view="map"] .legal { display: none; }
   .sheet { border-radius: 0; padding: 0; }
   .view:not(.active) { display: none !important; }
 }
+
+/* ---- Guides ---- */
+.guide-head { margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+.guide-tabs { margin: 0; border-bottom: 0; }
+.guide-steps { list-style: none; margin: 10px 0; padding: 0; display: grid; gap: 8px; }
+.guide-step { display: flex; gap: 12px; padding: 10px 12px; background: var(--bg2); border: 1px solid var(--line); border-radius: var(--radius); }
+.gs-num { flex: none; width: 30px; height: 30px; display: grid; place-items: center; font-weight: 800; color: #000; background: var(--yellow); clip-path: polygon(0 0, 100% 0, 100% 70%, 70% 100%, 0 100%); }
+.gs-body { flex: 1; min-width: 0; }
+.gs-body > b { color: var(--cyan); font-size: 15px; }
+.gs-body p { margin: 4px 0 0; }
+.gs-body dl { margin: 8px 0 0; display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; font-size: 13px; }
+.gs-body dt { font-weight: 700; color: var(--text); }
+.gs-body dd { margin: 0; color: #cfd4de; }
+.gs-tip { margin-top: 8px; padding: 6px 10px; font-size: 13px; color: var(--muted); border-left: 2px solid var(--yellow); background: rgba(247, 226, 27, .05); }
+.guide-extra { margin-bottom: 10px; }
+@media (max-width: 560px) {
+  .gs-body dl { grid-template-columns: 1fr; gap: 2px; }
+  .gs-body dd { margin-bottom: 6px; }
+}
