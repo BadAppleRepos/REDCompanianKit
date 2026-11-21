@@ -53,12 +53,18 @@ CPR.characters = (function () {
     c.customSkills = arr(c.customSkills).map(s => ({ name: str(s.name), stat: statId(s.stat), level: num(s.level), x2: !!s.x2 }));
     // Older saves have no cost: fill the base price when the name matches a standard weapon / armor.
     const basePrice = (list, name) => (list.find(x => x.name === name) || {}).cost || 0;
-    c.weapons = arr(c.weapons).map(w => ({
-      cost: w.cost == null ? basePrice(D.WEAPONS, w.name) : num(w.cost),
-      name: str(w.name), skill: str(w.skill) || 'Handgun', damage: str(w.damage), rof: num(w.rof, 1), mag: num(w.mag),
-      ammo: w.ammo == null ? null : num(w.ammo), notes: str(w.notes), dmgOverride: str(w.dmgOverride), dmgMod: num(w.dmgMod),
-      wtype: D.WEAPON_TYPES.some(t => t.id === w.wtype) ? w.wtype : '',
-    }));
+    c.weapons = arr(c.weapons).map(w => {
+      const mag = Math.max(0, num(w.mag));
+      // Older saves: an untouched gun counted as fully loaded, and had no Total Ammo yet.
+      const ammo = Math.max(0, w.ammo == null ? mag : num(w.ammo));
+      return {
+        cost: w.cost == null ? basePrice(D.WEAPONS, w.name) : num(w.cost),
+        name: str(w.name), skill: str(w.skill) || 'Handgun', damage: str(w.damage), rof: num(w.rof, 1), mag,
+        ammo, ammoTotal: Math.max(0, w.ammoTotal == null ? ammo : num(w.ammoTotal)),
+        notes: str(w.notes), dmgOverride: str(w.dmgOverride), dmgMod: num(w.dmgMod),
+        wtype: D.WEAPON_TYPES.some(t => t.id === w.wtype) ? w.wtype : '',
+      };
+    });
     c.gear = arr(c.gear).map(g => ({ name: str(g.name), qty: num(g.qty, 1), notes: str(g.notes) }));
     c.armor = obj(c.armor);
     ['head', 'body'].forEach(l => {
@@ -634,7 +640,7 @@ CPR.characters = (function () {
           ${weapons.map(({ w, i }) => {
             const atk = sum(skillParts(c, d, w.skill));
             const ranged = !isMelee(w) && Number(w.mag) > 0;
-            const ammo = w.ammo == null ? Number(w.mag) : w.ammo;
+            const ammo = Number(w.ammo) || 0;
             const af = autofireN(w);
             return `<div class="pw">
               <div class="pw-name"><b>${esc(w.name)}${w.wtype ? ` <span class="wt">${esc(wtypeName(w.wtype))}</span>` : ''}</b><small>${esc(w.skill)} · ROF ${w.rof}${w.notes ? ' · ' + esc(w.notes) : ''}</small></div>
@@ -643,7 +649,7 @@ CPR.characters = (function () {
                 <button class="roll-btn dmg" data-roll="dmg:${i}" title="${effDmg(w).over ? 'Override of base ' + esc(w.damage) : 'Roll damage'}"><small>DMG${effDmg(w).over ? '*' : ''}</small>${esc(effDmg(w).label)}</button>
                 ${af ? `<button class="roll-btn" data-roll="auto:${i}" title="Autofire: uses 10 rounds"><small>AUTO</small>${signed(sum(skillParts(c, d, 'Autofire')))}</button>` : ''}
               </div>
-              ${ranged ? `<div class="pw-ammo"><span>Ammo <b class="${ammo === 0 ? 'out' : ''}">${ammo}</b>/${w.mag}</span>
+              ${ranged ? `<div class="pw-ammo"><span>Ammo <b class="${ammo === 0 ? 'out' : ''}">${ammo}</b>/${w.mag} <span class="muted">· ${Number(w.ammoTotal) || 0} total</span></span>
                 <button class="btn sm ghost" data-a="reload" data-i="${i}">↻ Reload</button></div>` : ''}
             </div>`;
           }).join('')}
@@ -723,17 +729,17 @@ CPR.characters = (function () {
         const w = c.weapons[+arg];
         const ranged = !isMelee(w) && Number(w.mag) > 0;
         const need = kind === 'auto' ? 10 : 1;
-        if (w.ammo == null) w.ammo = Number(w.mag) || 0;
+        w.ammo = Number(w.ammo) || 0;
         if (ranged && w.ammo < need) return U.toast(`${w.name}: ${w.ammo ? 'not enough' : 'out of'} ammo — reload`);
-        if (ranged) w.ammo -= need;
+        if (ranged) { w.ammo -= need; w.ammoTotal = Math.max(0, (Number(w.ammoTotal) || 0) - need); }
         save();
         if (kind === 'auto') {
           const n = autofireN(w);
           R.check({ ...base, label: `${w.name} — Autofire`, parts: skillParts(c, d, 'Autofire'),
-            note: `Used 10 rounds (${w.ammo} left). If you beat the DV: damage 2d6 × the amount you beat it by, max ×${n}.` });
+            note: `Used 10 rounds (${w.ammo} loaded, ${w.ammoTotal} total). If you beat the DV: damage 2d6 × the amount you beat it by, max ×${n}.` });
         } else {
           R.check({ ...base, label: `${w.name} — Attack`, parts: skillParts(c, d, w.skill),
-            note: [ranged ? `${w.ammo}/${w.mag} rounds left · ROF ${w.rof}` : `ROF ${w.rof}`, CPR.tableRules.weaponRule(w.wtype)].filter(Boolean).join(' · ') });
+            note: [ranged ? `${w.ammo}/${w.mag} loaded · ${w.ammoTotal} total · ROF ${w.rof}` : `ROF ${w.rof}`, CPR.tableRules.weaponRule(w.wtype)].filter(Boolean).join(' · ') });
         }
         return renderTab();
       }
@@ -1097,8 +1103,8 @@ CPR.characters = (function () {
       <div class="panel" style="grid-column:1/-1">
         <div class="row"><h3 style="margin:0">Weapons</h3>${U.nightMarketLink('weapons')}<span class="spacer"></span>
           <select id="weapon-pick" style="max-width:220px"><option value="">+ Add weapon…</option>${D.WEAPONS.map((w, i) => `<option value="${i}">${esc(w.name)} (${w.damage}, ${w.cost.toLocaleString()}eb)</option>`).join('')}<option value="custom">Custom weapon</option></select></div>
-        <div class="scroll-x"><table class="list-table" style="margin-top:8px;min-width:980px">
-          <tr><th>Name</th><th>Skill</th><th>Type</th><th>Dmg</th><th title="Replaces the base damage dice, e.g. 4d6">Override</th><th title="Flat amount added to the damage roll">Modifier</th><th>ROF</th><th>Mag</th><th title="Price paid (standard quality by default)">Cost</th><th>Base</th><th>Notes</th><th></th></tr>
+        <div class="scroll-x"><table class="list-table" style="margin-top:8px;min-width:1140px">
+          <tr><th>Name</th><th>Skill</th><th>Type</th><th>Dmg</th><th title="Replaces the base damage dice, e.g. 4d6">Override</th><th title="Flat amount added to the damage roll">Modifier</th><th>ROF</th><th title="Rounds loaded right now">Current Ammo</th><th title="How many rounds one magazine / clip holds">Mag Size</th><th title="Every round you carry, including the ones loaded">Total Ammo</th><th title="Price paid (standard quality by default)">Cost</th><th>Base</th><th>Notes</th><th></th></tr>
           ${c.weapons.map((w, i) => {
             const sk = D.SKILLS.find(s => s.name === w.skill);
             const base = sk ? statFor(c, d, sk.stat) + (c.skills[sk.name] || 0) : '';
@@ -1110,7 +1116,9 @@ CPR.characters = (function () {
             <td style="width:80px"><input data-bind="weapons.${i}.dmgOverride" value="${esc(w.dmgOverride || '')}" placeholder="—" title="Replaces the base damage dice, e.g. 4d6"></td>
             <td style="width:70px"><input type="number" data-bind="weapons.${i}.dmgMod" value="${Number(w.dmgMod) || 0}" title="Flat amount added to the damage roll"></td>
             <td style="width:56px"><input type="number" data-bind="weapons.${i}.rof" value="${w.rof}"></td>
-            <td style="width:64px"><input type="number" data-bind="weapons.${i}.mag" value="${w.mag}"></td>
+            <td style="width:70px"><input type="number" min="0" data-bind="weapons.${i}.ammo" value="${Number(w.ammo) || 0}" title="Rounds loaded right now"></td>
+            <td style="width:64px"><input type="number" min="0" data-bind="weapons.${i}.mag" value="${w.mag}" title="How many rounds one magazine / clip holds"></td>
+            <td style="width:70px"><input type="number" min="0" data-bind="weapons.${i}.ammoTotal" value="${Number(w.ammoTotal) || 0}" title="Every round you carry, including the ones loaded"></td>
             <td style="width:76px"><input type="number" min="0" data-bind="weapons.${i}.cost" value="${Number(w.cost) || 0}"></td>
             <td style="width:46px" class="mono"><b style="color:var(--yellow)">${base}</b></td>
             <td><input data-bind="weapons.${i}.notes" value="${esc(w.notes || '')}"></td>
@@ -1166,8 +1174,8 @@ CPR.characters = (function () {
             <tr><td>Body</td><td>${esc(c.armor.body.name)}</td><td>${c.armor.body.spCurrent}/${c.armor.body.sp}</td></tr>
             ${d.skinSp ? `<tr><td colspan="2">Cyberware armor</td><td>${d.skinSp}</td></tr>` : ''}</table>
           <h4>Weapons</h4>
-          <table><tr><th>Weapon</th><th>Dmg</th><th>ROF</th><th>Mag</th><th>Notes</th></tr>
-            ${c.weapons.map(w => `<tr><td>${esc(w.name)}${w.wtype ? ` (${esc(wtypeName(w.wtype))})` : ''}</td><td>${esc(effDmg(w).label)}</td><td>${w.rof}</td><td>${w.mag || '—'}</td><td>${esc(w.notes || '')}</td></tr>`).join('')}
+          <table><tr><th>Weapon</th><th>Dmg</th><th>ROF</th><th>Ammo (total)</th><th>Notes</th></tr>
+            ${c.weapons.map(w => `<tr><td>${esc(w.name)}${w.wtype ? ` (${esc(wtypeName(w.wtype))})` : ''}</td><td>${esc(effDmg(w).label)}</td><td>${w.rof}</td><td>${w.mag ? `${Number(w.ammo) || 0}/${w.mag} (${Number(w.ammoTotal) || 0})` : '—'}</td><td>${esc(w.notes || '')}</td></tr>`).join('')}
             ${cyberWeaponsOf(d).map(x => `<tr><td>${esc(x.info.name)} (cyber)</td><td>${esc(x.w.damage)}</td><td>${x.w.rof}</td><td>—</td><td>${esc(x.w.skill)}</td></tr>`).join('')}
             ${c.weapons.length || cyberWeaponsOf(d).length ? '' : '<tr><td colspan="5">—</td></tr>'}</table>
           ${c.deck || (c.programs || []).length ? `<h4>Cyberdeck</h4><table><tr><td>${esc(deckOf(c).name)}</td><td>${(c.programs || []).length}/${deckOf(c).slots} slots</td></tr>${programsOf(c).map(pg => `<tr><td>${esc(pg.name)} (${esc(pg.kind || pg.cls)})</td><td>${pg.cls === 'Attacker' ? 'ATK ' + pg.atk : 'REZ ' + pg.cur + '/' + pg.rez}${pg.damage ? ' · ' + pg.damage : ''}</td></tr>`).join('')}</table>` : ''}
@@ -1210,7 +1218,7 @@ CPR.characters = (function () {
     D.SKILLS.filter(s => (c.skills[s.name] || 0) > 0).forEach(s => L.push(`  ${s.name} (${s.stat}) ${c.skills[s.name]} → ${statFor(c, d, s.stat) + c.skills[s.name]}`));
     c.customSkills.filter(s => s.name).forEach(s => L.push(`  ${s.name} (${s.stat}) ${s.level} → ${statFor(c, d, s.stat) + (Number(s.level) || 0)}`));
     L.push('', 'WEAPONS');
-    c.weapons.forEach(w => L.push(`  ${w.name}${w.wtype ? ' [' + wtypeName(w.wtype) + ']' : ''}: ${effDmg(w).label}, ROF ${w.rof}${w.mag ? ', Mag ' + w.mag : ''}${w.notes ? ' — ' + w.notes : ''}`));
+    c.weapons.forEach(w => L.push(`  ${w.name}${w.wtype ? ' [' + wtypeName(w.wtype) + ']' : ''}: ${effDmg(w).label}, ROF ${w.rof}${w.mag ? `, Ammo ${Number(w.ammo) || 0}/${w.mag} (${Number(w.ammoTotal) || 0} total)` : ''}${w.notes ? ' — ' + w.notes : ''}`));
     cyberWeaponsOf(d).forEach(x => L.push(`  ${x.info.name} (cyberware): ${x.w.damage}, ROF ${x.w.rof}`));
     if (c.deck || (c.programs || []).length) {
       L.push('', `CYBERDECK: ${deckOf(c).name} (${(c.programs || []).length}/${deckOf(c).slots} slots)`);
@@ -1311,10 +1319,10 @@ CPR.characters = (function () {
       saveNow(); return renderTab();
     }
     if (t.id === 'weapon-pick') {
-      if (t.value === 'custom') current.weapons.push({ name: 'New weapon', skill: 'Handgun', damage: '2d6', rof: 1, mag: 0, notes: '', cost: 0 });
+      if (t.value === 'custom') current.weapons.push({ name: 'New weapon', skill: 'Handgun', damage: '2d6', rof: 1, mag: 0, ammo: 0, ammoTotal: 0, notes: '', cost: 0 });
       else if (t.value !== '') {
         const w = D.WEAPONS[+t.value];
-        current.weapons.push({ name: w.name, skill: w.skill, damage: w.damage, rof: w.rof, mag: w.mag, notes: w.notes || '', cost: w.cost });
+        current.weapons.push({ name: w.name, skill: w.skill, damage: w.damage, rof: w.rof, mag: w.mag, ammo: w.mag || 0, ammoTotal: w.mag || 0, notes: w.notes || '', cost: w.cost });
         pay(w.cost, w.name);
       }
       saveNow(); return renderTab();
@@ -1390,8 +1398,10 @@ CPR.characters = (function () {
       }
       case 'reload': {
         const w = c.weapons[+b.dataset.i];
-        w.ammo = Number(w.mag) || 0;
-        U.toast(`${w.name} reloaded (${w.ammo})`);
+        const total = Number(w.ammoTotal) || 0, full = Math.min(Number(w.mag) || 0, total);
+        if (full <= (Number(w.ammo) || 0)) { U.toast(total ? `${w.name} is already as full as it can be` : `${w.name}: no ammo left. Add some to Total Ammo on the Gear tab`); break; }
+        w.ammo = full;
+        U.toast(`${w.name} reloaded (${w.ammo}/${w.mag}, ${total} total)`);
         saveNow(); renderTab(); break;
       }
       case 'new': {

@@ -263,7 +263,7 @@ CPR.DATA = {
     { name: 'Shotgun', skill: 'Shoulder Arms', damage: '5d6', rof: 1, mag: 4, cost: 500, hands: 2, notes: 'Shotgun shell: 3d6 area' },
     { name: 'Assault Rifle', skill: 'Shoulder Arms', damage: '5d6', rof: 1, mag: 25, cost: 500, hands: 2, notes: 'Autofire (4)' },
     { name: 'Sniper Rifle', skill: 'Shoulder Arms', damage: '5d6', rof: 1, mag: 4, cost: 500, hands: 2 },
-    { name: 'Bow / Crossbow', skill: 'Archery', damage: '4d6', rof: 1, mag: 0, cost: 100, hands: 2 },
+    { name: 'Bow / Crossbow', skill: 'Archery', damage: '4d6', rof: 1, mag: 1, cost: 100, hands: 2 },
     { name: 'Grenade Launcher', skill: 'Heavy Weapons', damage: '6d6', rof: 1, mag: 2, cost: 500, hands: 2, notes: 'Explosive' },
     { name: 'Rocket Launcher', skill: 'Heavy Weapons', damage: '8d6', rof: 1, mag: 1, cost: 500, hands: 2, notes: 'Explosive' },
     { name: 'Light Melee Weapon', skill: 'Melee Weapon', damage: '1d6', rof: 2, mag: 0, cost: 50, hands: 1 },
