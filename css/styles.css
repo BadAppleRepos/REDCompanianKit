@@ -793,3 +793,6 @@ body[data-view="map"] .legal { display: none; }
 .solo-play > summary b { color: var(--yellow); }
 .solo-play .solo-ca { margin: 8px 0 4px; padding: 0; border: 0; background: none; box-shadow: none; }
 .solo-play .solo-ca h3 { display: none; }
+.ca-rolls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 10px; }
+.ca-rolls .roll-btn:disabled { opacity: .35; cursor: default; }
+.role-ability { color: #cfd4de; }

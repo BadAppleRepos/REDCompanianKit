@@ -95,6 +95,7 @@ CPR.quickhacks = (function () {
       base: q.base === 'interface' || CPR.DATA.SKILLS.some(s => s.name === q.base) ? q.base : 'interface',
       tier: CPR.DATA.QUICKHACK_TIERS.includes(q.tier) ? q.tier : '',
       dv: String(q.dv || ''), duration: String(q.duration || ''), damage: String(q.damage || ''), dmgLabel: String(q.dmgLabel || ''),
+      strain: /^\d{0,2}d\d{1,3}([+-]\d{1,3})?$/i.test(String(q.strain || '').trim()) ? String(q.strain).trim() : '',
       cost: String(q.cost || ''), source: String(q.source || ''),
       updated: q.updated || Date.now(),
     };
@@ -341,6 +342,7 @@ CPR.homebrew = (function () {
           <label class="field">What the dice are<input id="qh-dmglabel" value="${esc(q.dmgLabel)}" placeholder="e.g. damage to HP"></label>
           <label class="field">Cost / limits (optional)<input id="qh-cost" value="${esc(q.cost)}" placeholder="e.g. 1 NET Action"></label>
         </div>
+        <label class="field">Humanity strain dice (optional)<input id="qh-strain" value="${esc(q.strain || '')}" placeholder="Blank = DV ÷ 2 − Interface + 1d6, or e.g. 4d6"></label>
         <label class="field">Effect<textarea id="qh-effect" rows="4">${esc(q.effect)}</textarea></label>
       </div>`,
       actions: [{ label: 'Cancel' }, {
@@ -348,7 +350,7 @@ CPR.homebrew = (function () {
           const v = s => w.querySelector(s).value.trim();
           if (!v('#qh-name')) { U.toast('Give it a name'); return false; }
           Q.save({ ...q, name: v('#qh-name'), base: v('#qh-base'), dv: v('#qh-dv'), tier: v('#qh-tier'), duration: v('#qh-duration'),
-            damage: v('#qh-dmg'), dmgLabel: v('#qh-dmglabel'), cost: v('#qh-cost'), effect: v('#qh-effect'), updated: Date.now() });
+            damage: v('#qh-dmg'), dmgLabel: v('#qh-dmglabel'), cost: v('#qh-cost'), strain: v('#qh-strain'), effect: v('#qh-effect'), updated: Date.now() });
           render(); U.toast('Quickhack saved');
         },
       }],

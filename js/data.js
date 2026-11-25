@@ -28,16 +28,16 @@ CPR.DATA = {
   },
 
   ROLES: [
-    { id: 'rockerboy', name: 'Rockerboy', ability: 'Charismatic Impact', desc: 'Rebel rockers who use performance to fight authority and sway fans.' },
-    { id: 'solo', name: 'Solo', ability: 'Combat Awareness', desc: 'Bodyguards, assassins and soldiers for hire.' },
-    { id: 'netrunner', name: 'Netrunner', ability: 'Interface', desc: 'Hackers who jack into the NET to break systems.' },
-    { id: 'tech', name: 'Tech', ability: 'Maker', desc: 'Renegade mechanics and inventors who fix, upgrade and invent.' },
-    { id: 'medtech', name: 'Medtech', ability: 'Medicine', desc: 'Street doctors who patch up meat and chrome.' },
-    { id: 'media', name: 'Media', ability: 'Credibility', desc: 'Reporters and influencers who expose the truth.' },
-    { id: 'exec', name: 'Exec', ability: 'Teamwork', desc: 'Corporate climbers with a team at their back.' },
-    { id: 'lawman', name: 'Lawman', ability: 'Backup', desc: 'Cops and marshals who can call in support.' },
-    { id: 'fixer', name: 'Fixer', ability: 'Operator', desc: 'Deal makers, smugglers and information brokers.' },
-    { id: 'nomad', name: 'Nomad', ability: 'Moto', desc: 'Road warriors with a family vehicle pool.' },
+    { id: 'rockerboy', name: 'Rockerboy', ability: 'Charismatic Impact', desc: 'Rebel rockers who use performance to fight authority and sway fans.', abilityText: 'Charismatic Impact: win favors from people who are already fans of your work. Higher rank reaches bigger crowds and lets you ask more of them.' },
+    { id: 'solo', name: 'Solo', ability: 'Combat Awareness', desc: 'Bodyguards, assassins and soldiers for hire.', abilityText: 'Combat Awareness: spread points equal to your rank across combat edges like Precision Attack and Initiative Reaction (below).' },
+    { id: 'netrunner', name: 'Netrunner', ability: 'Interface', desc: 'Hackers who jack into the NET to break systems.', abilityText: 'Interface: your rank powers your Interface abilities and sets your NET Actions in an Architecture. See the Netrunning tab.' },
+    { id: 'tech', name: 'Tech', ability: 'Maker', desc: 'Renegade mechanics and inventors who fix, upgrade and invent.', abilityText: 'Maker: each rank gives 2 specialty points across Field, Upgrade, Fabrication and Invention Expertise (below).' },
+    { id: 'medtech', name: 'Medtech', ability: 'Medicine', desc: 'Street doctors who patch up meat and chrome.', abilityText: 'Medicine: each rank gives 1 point in Surgery, Pharmaceuticals or Cryosystem Operation (below).' },
+    { id: 'media', name: 'Media', ability: 'Credibility', desc: 'Reporters and influencers who expose the truth.', abilityText: 'Credibility: get your stories published and believed. Higher rank reaches a wider audience and turns up more rumors on your own.' },
+    { id: 'exec', name: 'Exec', ability: 'Teamwork', desc: 'Corporate climbers with a team at their back.', abilityText: 'Teamwork: build a loyal team of corporate employees and earn company perks as you rank up (below).' },
+    { id: 'lawman', name: 'Lawman', ability: 'Backup', desc: 'Cops and marshals who can call in support.', abilityText: 'Backup: call in officers from your agency. Higher rank brings more of them, better armed.' },
+    { id: 'fixer', name: 'Fixer', ability: 'Operator', desc: 'Deal makers, smugglers and information brokers.', abilityText: 'Operator: know who has what. Higher rank widens your contacts and helps you find gear, haggle and deal across cultures.' },
+    { id: 'nomad', name: 'Nomad', ability: 'Moto', desc: 'Road warriors with a family vehicle pool.', abilityText: 'Moto: add your rank to driving, piloting and vehicle Tech skills, and grow your family’s motor pool (below).' },
   ],
 
   // cat: skill category, stat: linked stat, x2: costs double, basic: starts at 2 minimum
@@ -564,7 +564,7 @@ CPR.DATA.MISSION_KIT_CYBERWARE = [
  *   damage + dmgLabel: dice to roll for the effect (leave '' if nothing to roll)
  */
 CPR.DATA.QUICKHACK_SOURCE = 'Prototype quickhack';
-CPR.DATA.QUICKHACK_TIERS = ['Simple', 'Standard', 'Difficult', 'Advanced'];
+CPR.DATA.QUICKHACK_TIERS = ['Simple', 'Standard', 'Difficult', 'Advanced', 'Legendary'];
 CPR.DATA.QUICKHACK_STRAIN = '1d6'; // temporary Humanity per attempt: DV/2 - Interface + this roll, minimum 1
 CPR.DATA.QUICKHACK_STRAIN_TEXT = 'DV ÷ 2 − Interface + 1d6 (min 1)';
 // Jack In / Force Out thresholds used by the rolls on the Netrunning tab.
@@ -596,6 +596,9 @@ CPR.DATA.QUICKHACKS = [
     effect: 'Target falls Prone and stays Unconscious until it ends or they take damage.' },
   { id: 'mk_puppet', name: 'Puppet', tier: 'Advanced', dv: '12', duration: '1 turn (their next)',
     effect: 'You take over the target\'s Action and Move Action on their next turn.' },
+  // strain: fixed dice of temporary Humanity that replace the usual DV ÷ 2 − Interface + 1d6.
+  { id: 'mk_cyberpsychosis', name: 'Cyberpsychosis', tier: 'Legendary', dv: '15', strain: '4d6',
+    effect: 'The target goes cyberpsycho. The GM runs what they do while it lasts. The strain is a flat 4d6 temporary Humanity.' },
 ];
 // Saves from before these existed: old placeholder ids map onto their replacements.
 CPR.DATA.QUICKHACK_ALIASES = { mk_cripple_movement: 'mk_slow', mk_reboot: 'mk_system_reset' };
@@ -668,3 +671,30 @@ CPR.DATA.SOLO_ABILITIES = [
   { id: 'spot', name: 'Spot Weakness', cost: 1, max: 10, unit: 'damage', text: '+1 damage per level (before armor) to your first successful attack each Round.' },
   { id: 'threat', name: 'Threat Detection', cost: 1, max: 10, unit: 'Perception', text: '+1 to Perception checks per level.' },
 ];
+
+// Medtech Role Ability: Medicine. 1 point per rank into a specialty.
+CPR.DATA.MEDTECH_SPECS = [
+  { id: 'surgery', name: 'Surgery', cost: 1, max: 5, text: 'Each point gives 2 ranks in the Surgery skill (TECH). Treats serious Critical Injuries and installs cyberware.' },
+  { id: 'pharma', name: 'Pharmaceuticals', cost: 1, max: 10, text: 'Each point gives 1 rank in Medical Tech and lets you make a pharmaceutical (e.g. Antibiotics, Rapidetox, Speedheal, Stim, Surge).' },
+  { id: 'cryo', name: 'Cryosystem Operation', cost: 1, max: 5, text: 'Each point gives 1 rank in Medical Tech and unlocks cryo gear: a Cryopump at 1, cryotank certification at 2, a Cryotank at 3, more at 4 and 5.' },
+];
+// Tech Role Ability: Maker. 2 points per rank, never more than your rank in one specialty.
+CPR.DATA.TECH_SPECS = [
+  { id: 'field', name: 'Field Expertise', cost: 1, max: 10, text: 'Adds to Basic Tech, Cybertech, Electronics/Security Tech, Weaponstech and vehicle Tech checks (applied automatically), and to quick field fixes.' },
+  { id: 'upgrade', name: 'Upgrade Expertise', cost: 1, max: 10, text: 'Install upgrades on weapons, vehicles and other gear. Roll TECH + the item’s Tech skill + this rank + 1d10.' },
+  { id: 'fabrication', name: 'Fabrication Expertise', cost: 1, max: 10, text: 'Build items from materials, including your own inventions. Roll TECH + the item’s Tech skill + this rank + 1d10.' },
+  { id: 'invention', name: 'Invention Expertise', cost: 1, max: 10, text: 'Invent new items or upgrades. The blueprint can later be built with Fabrication or Upgrade Expertise.' },
+];
+CPR.DATA.MAKER_FIELD_SKILLS = ['Basic Tech', 'Cybertech', 'Electronics/Security Tech', 'Weaponstech', 'Land Vehicle Tech', 'Sea Vehicle Tech', 'Air Vehicle Tech'];
+// Nomad Moto rank adds to these skills.
+CPR.DATA.MOTO_SKILLS = ['Drive Land Vehicle', 'Pilot Air Vehicle', 'Pilot Sea Vehicle', 'Land Vehicle Tech', 'Sea Vehicle Tech', 'Air Vehicle Tech'];
+
+// Point-allocation Role Abilities. perRank = points per rank; capAtRank = a specialty can't go above your rank.
+CPR.DATA.ROLE_ALLOC = {
+  solo: { title: 'Combat Awareness', perRank: 1, specs: CPR.DATA.SOLO_ABILITIES,
+    note: 'Points equal your Combat Awareness rank. Reallocate when combat starts, any time outside combat, or as an Action during it.' },
+  medtech: { title: 'Medicine', perRank: 1, specs: CPR.DATA.MEDTECH_SPECS,
+    note: 'Each Medicine rank gives 1 point to put into a specialty. Medical Tech skill = Pharmaceuticals + Cryosystem Operation (max 10).' },
+  tech: { title: 'Maker', perRank: 2, capAtRank: true, specs: CPR.DATA.TECH_SPECS,
+    note: 'Each Maker rank gives 1 point in two different specialties, so no specialty can go above your Maker rank.' },
+};

@@ -16,7 +16,7 @@ CPR.characters = (function () {
       handle: '', name: '', role: 'solo', roleRank: R.startingRoleRank, age: '', pronouns: '',
       creationMode: 'package',
       stats, skills, customSkills: [],
-      hpCurrent: null, humanityExtra: 0, deathSaveBonus: 0, deathPenalty: 0, quickhacks: [], deck: '', programs: [], tempHumanity: 0, netMods: {}, soloCA: {},
+      hpCurrent: null, humanityExtra: 0, deathSaveBonus: 0, deathPenalty: 0, quickhacks: [], deck: '', programs: [], tempHumanity: 0, netMods: {}, soloCA: {}, roleAlloc: {}, nomadPool: [], execTeam: [], execPerks: '',
       armor: { head: { name: 'None', sp: 0, spCurrent: 0 }, body: { name: 'None', sp: 0, spCurrent: 0 } },
       weapons: [], gear: [],
       cyber: { zones: {} },
@@ -42,10 +42,15 @@ CPR.characters = (function () {
     ['roleRank', 'money', 'ip', 'reputation', 'humanityExtra', 'deathSaveBonus', 'deathPenalty', 'tempHumanity'].forEach(k => { c[k] = num(c[k]); });
     c.tempHumanity = Math.max(0, c.tempHumanity);
     if (!D.TRAUMA_TEAM.some(t => t.id === c.traumaTeam)) c.traumaTeam = '';
-    // Solo Combat Awareness: known abilities only, whole levels within each ability's max.
-    const ca = obj(c.soloCA), cleanCa = {};
-    D.SOLO_ABILITIES.forEach(a => { const v = Math.max(0, Math.min(a.max, Math.floor(num(ca[a.id])))); if (v) cleanCa[a.id] = v; });
-    c.soloCA = cleanCa;
+    // Role ability points (Solo, Medtech, Tech): known specialties only, whole levels within each max.
+    const cleanLv = (raw, specs) => { const o = obj(raw), out = {}; specs.forEach(a => { const v = Math.max(0, Math.min(a.max, Math.floor(num(o[a.id])))); if (v) out[a.id] = v; }); return out; };
+    c.soloCA = cleanLv(c.soloCA, D.SOLO_ABILITIES);
+    const ra = obj(c.roleAlloc);
+    c.roleAlloc = {};
+    Object.entries(D.ROLE_ALLOC).forEach(([rid, cfg]) => { if (rid !== 'solo') { const v = cleanLv(ra[rid], cfg.specs); if (Object.keys(v).length) c.roleAlloc[rid] = v; } });
+    c.nomadPool = arr(c.nomadPool).slice(0, 50).map(v => ({ kind: v.kind === 'upgrade' ? 'upgrade' : 'vehicle', name: str(v.name), notes: str(v.notes) }));
+    c.execTeam = arr(c.execTeam).slice(0, 50).map(m => ({ name: str(m.name), job: str(m.job), loyalty: num(m.loyalty), notes: str(m.notes) }));
+    c.execPerks = str(c.execPerks);
     // Per-roll modifiers (Jack In, Force Out, each quickhack): plain keys, numeric values only.
     const nm = obj(c.netMods), cleanMods = {};
     Object.keys(nm).forEach(k => { if (/^[A-Za-z0-9_-]{1,64}$/.test(k) && num(nm[k])) cleanMods[k] = num(nm[k]); });
@@ -194,13 +199,21 @@ CPR.characters = (function () {
       Object.entries(m.stats || {}).forEach(([k, v]) => v && (mods.statParts[k] = mods.statParts[k] || []).push({ label, v }));
       Object.entries(m.skills || {}).forEach(([k, v]) => v && (mods.skillParts[k] = mods.skillParts[k] || []).push({ label, v }));
     });
-    // Solo Combat Awareness points (only while the Role is Solo).
-    const solo = soloOf(c);
-    if (solo) {
-      if (solo.spent > solo.points) warnings.push(`Combat Awareness: ${solo.spent}/${solo.points} points spent`);
-      if (solo.lv.init) mods.initParts.push({ label: 'Initiative Reaction', v: solo.lv.init });
-      if (solo.lv.threat) (mods.skillParts.Perception = mods.skillParts.Perception || []).push({ label: 'Threat Detection', v: solo.lv.threat });
+    // Role abilities that add to rolls.
+    const addSkill = (name, label, v) => v && (mods.skillParts[name] = mods.skillParts[name] || []).push({ label, v });
+    const alloc = allocOf(c, c.role);
+    if (alloc) {
+      if (alloc.spent > alloc.points) warnings.push(`${alloc.cfg.title}: ${alloc.spent}/${alloc.points} points spent`);
+      if (alloc.capAt != null) alloc.cfg.specs.forEach(a => { if (alloc.lv[a.id] > alloc.capAt) warnings.push(`${a.name} is above your ${alloc.cfg.title} rank`); });
     }
+    const solo = c.role === 'solo' ? alloc : null;
+    if (solo) {
+      if (solo.lv.init) mods.initParts.push({ label: 'Initiative Reaction', v: solo.lv.init });
+      addSkill('Perception', 'Threat Detection', solo.lv.threat);
+    }
+    if (c.role === 'tech' && alloc) D.MAKER_FIELD_SKILLS.forEach(n => addSkill(n, 'Field Expertise', alloc.lv.field));
+    if (c.role === 'nomad') D.MOTO_SKILLS.forEach(n => addSkill(n, 'Moto', Math.max(0, Number(c.roleRank) || 0)));
+    if (c.role === 'nomad' && c.nomadPool.length > (Number(c.roleRank) || 0)) warnings.push(`Moto: ${c.nomadPool.length} motor pool picks for rank ${c.roleRank}`);
     const initBonus = mods.initParts.reduce((a, p) => a + p.v, 0);
 
     // Cyberware that sets BODY for Choke, Slam and strength feats (Gorilla Arms): highest one wins.
@@ -226,43 +239,132 @@ CPR.characters = (function () {
     };
   }
 
-  // Combat Awareness levels for a Solo, or null for other Roles.
-  function soloOf(c) {
-    if (c.role !== 'solo') return null;
-    const lv = {};
-    let spent = 0;
-    D.SOLO_ABILITIES.forEach(a => { lv[a.id] = Number((c.soloCA || {})[a.id]) || 0; spent += lv[a.id] * a.cost; });
-    return { lv, spent, points: Math.max(0, Number(c.roleRank) || 0) };
+  // Stored levels for a point-allocation Role Ability (Solo keeps its older soloCA field).
+  const allocRaw = (c, role) => (role === 'solo' ? c.soloCA : (c.roleAlloc || {})[role]) || {};
+  function allocSet(c, role, lv) {
+    if (role === 'solo') c.soloCA = lv;
+    else { c.roleAlloc = c.roleAlloc || {}; c.roleAlloc[role] = lv; }
   }
 
-  // Point-allocation panel for Combat Awareness (Identity and Play tabs).
-  function soloPanel(c, compact) {
-    const so = soloOf(c);
-    if (!so) return '';
-    const left = so.points - so.spent;
+  // Levels, points spent and points available for the character's Role, or null if it has no allocation.
+  function allocOf(c, role) {
+    const cfg = D.ROLE_ALLOC[role];
+    if (!cfg || c.role !== role) return null;
+    const rank = Math.max(0, Number(c.roleRank) || 0), raw = allocRaw(c, role), lv = {};
+    let spent = 0;
+    cfg.specs.forEach(a => { lv[a.id] = Number(raw[a.id]) || 0; spent += lv[a.id] * (a.cost || 1); });
+    return { cfg, role, lv, spent, points: rank * cfg.perRank, capAt: cfg.capAtRank ? rank : null };
+  }
+  const soloOf = c => allocOf(c, 'solo');
+  const specMax = (al, a) => (al.capAt != null ? Math.min(a.max, al.capAt) : a.max);
+
+  // Medtech skills that come from Medicine points.
+  const medSkills = al => ({ surgery: Math.min(10, 2 * (al.lv.surgery || 0)), medtech: Math.min(10, (al.lv.pharma || 0) + (al.lv.cryo || 0)) });
+
+  // Point-allocation panel (Identity tab, and folded up on the Play tab).
+  function allocPanel(c, role, compact) {
+    const al = allocOf(c, role);
+    if (!al) return '';
+    const left = al.points - al.spent;
     return `<div class="panel solo-ca${compact ? ' compact' : ''}">
-      <div class="row"><h3 style="margin:0">Combat Awareness</h3><span class="spacer"></span>
-        <span class="ca-pts ${left < 0 ? 'over' : left === 0 ? 'done' : ''}"><b>${so.spent}</b> / ${so.points} points${left > 0 ? ` · ${left} left` : left < 0 ? ` · ${-left} over` : ''}</span>
-        <button class="btn sm ghost" data-a="ca-reset" title="Take every point back">Reset</button></div>
-      <p class="muted small" style="margin:6px 0 8px">Points equal your Combat Awareness rank. Reallocate when combat starts, any time outside combat, or as an Action during it.</p>
-      <div class="ca-list">${D.SOLO_ABILITIES.map(a => {
-        const v = so.lv[a.id], canAdd = v < a.max && a.cost <= so.points - so.spent;
+      <div class="row"><h3 style="margin:0">${esc(al.cfg.title)}</h3><span class="spacer"></span>
+        <span class="ca-pts ${left < 0 ? 'over' : left === 0 ? 'done' : ''}"><b>${al.spent}</b> / ${al.points} points${left > 0 ? ` · ${left} left` : left < 0 ? ` · ${-left} over` : ''}</span>
+        <button class="btn sm ghost" data-a="ca-reset" data-role="${role}" title="Take every point back">Reset</button></div>
+      <p class="muted small" style="margin:6px 0 8px">${esc(al.cfg.note)}</p>
+      <div class="ca-list">${al.cfg.specs.map(a => {
+        const v = al.lv[a.id], cost = a.cost || 1, mx = specMax(al, a), canAdd = v < mx && cost <= left;
         return `<div class="ca-row ${v ? 'on' : ''}">
-          <div class="ca-text"><b>${esc(a.name)}</b><small>${a.cost} pt${a.cost > 1 ? 's' : ''} per level · max ${a.max}${compact ? '' : ` — ${esc(a.text)}`}</small></div>
+          <div class="ca-text"><b>${esc(a.name)}</b><small>${cost} pt${cost > 1 ? 's' : ''} per level · max ${mx}${compact ? '' : ` — ${esc(a.text)}`}</small></div>
           <div class="ca-ctl">
-            <button class="btn icon sm" data-a="ca-dec" data-ca="${a.id}" ${v ? '' : 'disabled'} aria-label="Lower ${esc(a.name)}">−</button>
+            <button class="btn icon sm" data-a="ca-dec" data-role="${role}" data-ca="${a.id}" ${v ? '' : 'disabled'} aria-label="Lower ${esc(a.name)}">−</button>
             <b class="ca-lv">${a.max === 1 ? (v ? 'ON' : 'OFF') : v}</b>
-            <button class="btn icon sm" data-a="ca-inc" data-ca="${a.id}" ${canAdd ? '' : 'disabled'} aria-label="Raise ${esc(a.name)}">+</button>
+            <button class="btn icon sm" data-a="ca-inc" data-role="${role}" data-ca="${a.id}" ${canAdd ? '' : 'disabled'} aria-label="Raise ${esc(a.name)}">+</button>
           </div></div>`;
       }).join('')}</div>
+      ${allocExtras(c, al)}
     </div>`;
   }
 
-  // One-line summary of the active Combat Awareness effects.
-  function soloSummary(c) {
-    const so = soloOf(c);
-    if (!so) return [];
-    return D.SOLO_ABILITIES.filter(a => so.lv[a.id]).map(a => a.max === 1 ? a.name : `${a.name} ${a.id === 'deflect' ? '−' : '+'}${so.lv[a.id]}${a.unit ? ' ' + a.unit : ''}`);
+  // Roll buttons that come with Medicine and Maker.
+  function allocExtras(c, al) {
+    const tech = c.stats.TECH || 0;
+    if (al.role === 'medtech') {
+      const m = medSkills(al);
+      return `<div class="ca-rolls">
+        <button class="roll-btn" data-roll="role:surgery" ${m.surgery ? '' : 'disabled'} title="TECH + Surgery + 1d10"><small>SURGERY ${m.surgery}</small>${signed(tech + m.surgery)}</button>
+        <button class="roll-btn" data-roll="role:medtech" ${m.medtech ? '' : 'disabled'} title="TECH + Medical Tech + 1d10"><small>MEDICAL TECH ${m.medtech}</small>${signed(tech + m.medtech)}</button>
+      </div>`;
+    }
+    if (al.role === 'tech') {
+      const sk = S.read('ui.makerSkill', 'Basic Tech'), skill = D.MAKER_FIELD_SKILLS.includes(sk) ? sk : 'Basic Tech';
+      const lvl = c.skills[skill] || 0;
+      const btn = (id, label) => `<button class="roll-btn" data-roll="role:${id}" ${al.lv[id] ? '' : 'disabled'} title="TECH + ${esc(skill)} + ${esc(label)} + 1d10"><small>${label.toUpperCase()}</small>${signed(tech + lvl + (al.lv[id] || 0))}</button>`;
+      return `<div class="ca-rolls">
+        <label class="field" style="min-width:200px;flex:1">Item's Tech skill<select id="maker-skill">${D.MAKER_FIELD_SKILLS.map(n => `<option ${n === skill ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
+        ${btn('fabrication', 'Fabricate')}${btn('upgrade', 'Upgrade')}${btn('invention', 'Invent')}
+      </div>`;
+    }
+    return '';
+  }
+
+  // One-line summary of a point-allocation Role Ability.
+  function allocSummary(c) {
+    const al = allocOf(c, c.role);
+    if (!al) return [];
+    const out = al.cfg.specs.filter(a => al.lv[a.id]).map(a => {
+      if (a.max === 1) return a.name;
+      if (al.role === 'solo') return `${a.name} ${a.id === 'deflect' ? '−' : '+'}${al.lv[a.id]}${a.unit ? ' ' + a.unit : ''}`;
+      return `${a.name} ${al.lv[a.id]}`;
+    });
+    if (al.role === 'medtech') { const m = medSkills(al); if (m.surgery) out.push(`Surgery skill ${m.surgery}`); if (m.medtech) out.push(`Medical Tech skill ${m.medtech}`); }
+    return out;
+  }
+
+  // Nomad motor pool and Exec team (Identity tab).
+  function nomadPanel(c) {
+    const rank = Math.max(0, Number(c.roleRank) || 0), used = c.nomadPool.length;
+    return `<div class="panel">
+      <div class="row"><h3 style="margin:0">Moto · Family Motor Pool</h3><span class="spacer"></span>
+        <span class="ca-pts ${used > rank ? 'over' : used === rank ? 'done' : ''}"><b>${used}</b> / ${rank} picks</span>
+        <button class="btn sm" data-a="pool-add" data-kind="vehicle">+ Vehicle</button>
+        <button class="btn sm" data-a="pool-add" data-kind="upgrade">+ Upgrade</button></div>
+      <p class="muted small" style="margin:6px 0 8px">Moto ${rank} is added to Drive Land Vehicle, Pilot Air / Sea Vehicle and the vehicle Tech skills automatically. Each rank adds one stock vehicle to the family motor pool, or one upgrade to a vehicle already in it.</p>
+      ${used ? `<table class="list-table"><tr><th style="width:100px">Pick</th><th>Vehicle / upgrade</th><th>Notes</th><th></th></tr>
+        ${c.nomadPool.map((v, i) => `<tr>
+          <td><select data-bind="nomadPool.${i}.kind"><option value="vehicle" ${v.kind === 'vehicle' ? 'selected' : ''}>Vehicle</option><option value="upgrade" ${v.kind === 'upgrade' ? 'selected' : ''}>Upgrade</option></select></td>
+          <td><input data-bind="nomadPool.${i}.name" value="${esc(v.name)}" placeholder="${v.kind === 'vehicle' ? 'e.g. Compact groundcar' : 'e.g. Armored chassis on the groundcar'}"></td>
+          <td><input data-bind="nomadPool.${i}.notes" value="${esc(v.notes)}"></td>
+          <td style="width:40px"><button class="btn icon sm danger" data-a="pool-del" data-i="${i}">×</button></td></tr>`).join('')}</table>`
+        : '<p class="muted small">Nothing in the motor pool yet.</p>'}
+    </div>`;
+  }
+
+  function execPanel(c) {
+    return `<div class="panel">
+      <div class="row"><h3 style="margin:0">Teamwork · Your Team</h3><span class="spacer"></span>
+        <button class="btn sm" data-a="team-add">+ Team member</button></div>
+      <p class="muted small" style="margin:6px 0 8px">Your team and company perks grow with your Teamwork rank. Track team members, their Loyalty and the perks you've earned here; check the book for what each rank gives.</p>
+      ${c.execTeam.length ? `<table class="list-table"><tr><th>Name</th><th>Job</th><th style="width:80px">Loyalty</th><th>Notes</th><th></th></tr>
+        ${c.execTeam.map((m, i) => `<tr>
+          <td><input data-bind="execTeam.${i}.name" value="${esc(m.name)}"></td>
+          <td><input data-bind="execTeam.${i}.job" value="${esc(m.job)}" placeholder="e.g. Bodyguard"></td>
+          <td><input type="number" data-bind="execTeam.${i}.loyalty" value="${m.loyalty}"></td>
+          <td><input data-bind="execTeam.${i}.notes" value="${esc(m.notes)}"></td>
+          <td style="width:40px"><button class="btn icon sm danger" data-a="team-del" data-i="${i}">×</button></td></tr>`).join('')}</table>`
+        : '<p class="muted small">No team members yet.</p>'}
+      <label class="field" style="margin-top:8px">Company perks<textarea data-bind="execPerks" rows="2" placeholder="e.g. corporate housing, health plan…">${esc(c.execPerks)}</textarea></label>
+    </div>`;
+  }
+
+  // Lines for the printed sheet and text export.
+  function roleLines(c) {
+    const out = [];
+    const sum = allocSummary(c);
+    if (sum.length) out.push([D.ROLE_ALLOC[c.role].title, sum.join(' · ')]);
+    if (c.role === 'nomad' && c.nomadPool.length) out.push(['Motor pool', c.nomadPool.map(v => `${v.kind === 'upgrade' ? 'Upgrade: ' : ''}${v.name || '(unnamed)'}${v.notes ? ` (${v.notes})` : ''}`).join(' · ')]);
+    if (c.role === 'exec' && c.execTeam.length) out.push(['Team', c.execTeam.map(m => `${m.name || '(unnamed)'}${m.job ? ', ' + m.job : ''}${m.loyalty ? `, Loyalty ${m.loyalty}` : ''}`).join(' · ')]);
+    if (c.role === 'exec' && c.execPerks) out.push(['Company perks', c.execPerks]);
+    return out;
   }
 
   function statFor(c, d, stat) { return stat === 'EMP' ? d.empCur : (c.stats[stat] || 0); }
@@ -495,11 +597,17 @@ CPR.characters = (function () {
   // Prototype strain: quickhack DV / 2 (rounded down) - Interface rank + 1d6, never less than 1.
   function strainBase(c, q) { return Math.floor((parseInt(q.dv, 10) || 0) / 2) - interfaceRank(c); }
   function strainRoll(c, q) {
+    if (q.strain) { const r = U.roll(q.strain); return { fixed: q.strain, roll: r.total, rolls: r.rolls, total: Math.max(1, r.total) }; }
     const r = U.roll(D.QUICKHACK_STRAIN).total, half = Math.floor((parseInt(q.dv, 10) || 0) / 2), iface = interfaceRank(c);
     return { roll: r, half, iface, total: Math.max(1, half - iface + r) };
   }
   // e.g. "Strain 1–4": the range this character can expect from a quickhack.
-  const strainRange = (c, q) => { const b = strainBase(c, q), lo = Math.max(1, b + 1), hi = Math.max(1, b + 6); return lo === hi ? `${lo}` : `${lo}–${hi}`; };
+  const strainRange = (c, q) => {
+    if (q.strain) {
+      const m = q.strain.match(/^(\d*)d(\d+)(?:([+-])(\d+))?$/i), n = parseInt(m[1] || '1', 10), f = parseInt(m[2], 10), k = m[3] ? (m[3] === '+' ? 1 : -1) * parseInt(m[4], 10) : 0;
+      return `${Math.max(1, n + k)}–${Math.max(1, n * f + k)} (${q.strain})`;
+    }
+    const b = strainBase(c, q), lo = Math.max(1, b + 1), hi = Math.max(1, b + 6); return lo === hi ? `${lo}` : `${lo}–${hi}`; };
 
   const qhBadge = q => (q.builtIn ? '<span class="wt mk">Prototype</span>' : '<span class="wt hb">★ GM</span>');
   const qhMeta = q => [q.tier, q.dv ? 'DV ' + q.dv : '', q.duration, q.base !== 'interface' ? q.base : '', q.cost].filter(Boolean).join(' · ');
@@ -511,7 +619,7 @@ CPR.characters = (function () {
         ${q.effect ? `<div class="qh-effect">${esc(q.effect)}</div>` : ''}</div>
       <div class="pw-btns">
         ${modBox(c, 'qh_' + q.id)}
-        <button class="roll-btn qh" data-roll="qh:${i}" title="Interface + 1d10 must be greater than DV ${esc(q.dv || '?')} (costs ${D.QUICKHACK_STRAIN_TEXT} temporary Humanity)"><small>HACK</small>${signed(sum(qhParts(c, d, q)))}</button>
+        <button class="roll-btn qh" data-roll="qh:${i}" title="Interface + 1d10 must be greater than DV ${esc(q.dv || '?')} (costs ${esc(q.strain || D.QUICKHACK_STRAIN_TEXT)} temporary Humanity)"><small>HACK</small>${signed(sum(qhParts(c, d, q)))}</button>
         ${q.damage ? `<button class="roll-btn dmg" data-roll="qhdmg:${i}" title="${esc(q.dmgLabel || 'Damage')}"><small>${esc((q.dmgLabel || 'DMG').split(' ')[0].toUpperCase())}</small>${esc(q.damage)}</button>` : ''}
         <button class="btn sm ghost" data-a="qh-toggle" data-id="${q.id}" title="Remove from this character">Forget</button>
       </div></div>`;
@@ -673,7 +781,7 @@ CPR.characters = (function () {
         <div class="pv"><small>HUMANITY</small><b>${d.humanity}</b><span>EMP ${d.empCur} · Run ${d.walk}m/turn${d.tempHumanity ? ` · −${d.tempHumanity} temporary` : ''}</span></div>
       </div>
       ${pens.length ? `<div class="play-pen">⚠ Applied to rolls: ${pens.map(p => esc(p.v ? `${p.label} ${signed(p.v)}` : p.label)).join(' · ')}</div>` : ''}
-      ${c.role === 'solo' ? `<details class="solo-play" ${S.read('ui.caOpen', false) ? 'open' : ''}><summary><b>Combat Awareness</b> ${d.solo.spent}/${d.solo.points} pts${soloSummary(c).length ? ' · ' + esc(soloSummary(c).join(' · ')) : ' · no points spent'}</summary>${soloPanel(c, true)}</details>` : ''}
+      ${(() => { const al = allocOf(c, c.role); return al ? `<details class="solo-play" ${S.read('ui.caOpen', false) ? 'open' : ''}><summary><b>${esc(al.cfg.title)}</b> ${al.spent}/${al.points} pts${allocSummary(c).length ? ' · ' + esc(allocSummary(c).join(' · ')) : ' · no points spent'}</summary>${allocPanel(c, c.role, true)}</details>` : ''; })()}
 
       <div class="play-stats">
         ${D.STATS.map(s => {
@@ -857,8 +965,23 @@ CPR.characters = (function () {
         save();
         R.check({ ...base, label: `⌁ ${q.name}`, parts: qhParts(c, d, q), dv: parseInt(q.dv, 10) || null,
           note: [q.dv ? `Needs more than DV ${q.dv}` : '', q.duration ? `Lasts ${q.duration}` : '', q.effect,
-            `Prototype strain: DV/2 ${st.half} − Interface ${st.iface} + d6 ${st.roll} = −${strain} Humanity (${c.tempHumanity} total until long rest)`].filter(Boolean).join(' · ') });
+            st.fixed ? `Prototype strain: ${st.fixed} [${st.rolls.join(', ')}] = −${strain} Humanity (${c.tempHumanity} total until long rest)`
+              : `Prototype strain: DV/2 ${st.half} − Interface ${st.iface} + d6 ${st.roll} = −${strain} Humanity (${c.tempHumanity} total until long rest)`].filter(Boolean).join(' · ') });
         return renderTab();
+      }
+      case 'role': {
+        const al = allocOf(c, c.role);
+        if (!al) return;
+        const tech = { label: 'TECH', v: c.stats.TECH || 0 };
+        if (arg === 'surgery' || arg === 'medtech') {
+          const m = medSkills(al), name = arg === 'surgery' ? 'Surgery' : 'Medical Tech';
+          return R.check({ ...base, label: name, parts: [tech, { label: name, v: m[arg] }, ...penalties(c, d, 'TECH')],
+            note: arg === 'surgery' ? 'Treat serious Critical Injuries, install cyberware.' : 'Make pharmaceuticals and run cryo gear.' });
+        }
+        const spec = D.TECH_SPECS.find(x => x.id === arg);
+        if (!spec) return;
+        const sk = S.read('ui.makerSkill', 'Basic Tech'), skill = D.MAKER_FIELD_SKILLS.includes(sk) ? sk : 'Basic Tech';
+        return R.check({ ...base, label: `Maker — ${spec.name}`, parts: [tech, { label: skill, v: c.skills[skill] || 0 }, { label: spec.name, v: al.lv[arg] || 0 }, ...penalties(c, d, 'TECH')], note: spec.text });
       }
       case 'brawl-atk': return R.check({ ...base, label: 'Brawling — Attack', parts: skillParts(c, d, 'Brawling') });
       case 'brawl-dmg': return R.damage({ ...base, label: 'Brawling — Damage', dice: brawlDice(c.stats.BODY), note: 'Damage dice set by BODY' });
@@ -883,9 +1006,12 @@ CPR.characters = (function () {
           <label class="field">Role<select data-bind="role" data-rerender="1">${D.ROLES.map(r => `<option value="${r.id}" ${r.id === c.role ? 'selected' : ''}>${r.name}</option>`).join('')}</select></label>
           <label class="field">${esc(d.role.ability)} Rank<input type="number" min="1" max="10" data-bind="roleRank" data-rerender="1" value="${c.roleRank}"></label>
         </div>
-        <p class="muted small" style="margin:8px 0 0"><b style="color:var(--yellow)">${esc(d.role.ability)}</b> — ${esc(d.role.desc)}</p>
+        <p class="muted small" style="margin:8px 0 0">${esc(d.role.desc)}</p>
+        <p class="small role-ability" style="margin:6px 0 0"><b style="color:var(--yellow)">${esc(d.role.ability)}</b> — ${esc((d.role.abilityText || '').replace(/^[^:]+:\s*/, ''))}</p>
       </div>
-      ${c.role === 'solo' ? `<div style="grid-column:1/-1">${soloPanel(c, false)}</div>` : ''}
+      ${D.ROLE_ALLOC[c.role] ? `<div style="grid-column:1/-1">${allocPanel(c, c.role, false)}</div>` : ''}
+      ${c.role === 'nomad' ? `<div style="grid-column:1/-1">${nomadPanel(c)}</div>` : ''}
+      ${c.role === 'exec' ? `<div style="grid-column:1/-1">${execPanel(c)}</div>` : ''}
       <div class="panel">
         <h3>Creation Rules</h3>
         <label class="field">Method<select data-bind="creationMode" data-rerender="1">
@@ -1257,7 +1383,7 @@ CPR.characters = (function () {
           <table><tr><td>Eurobucks</td><td>${Number(c.money).toLocaleString()}eb</td></tr><tr><td>Gear & chrome value</td><td>${gearValue(c, d).toLocaleString()}eb</td></tr><tr><td>IP</td><td>${c.ip}</td></tr><tr><td>Reputation</td><td>${c.reputation}</td></tr><tr><td>Trauma Team</td><td>${esc(traumaTeamLabel(c))}</td></tr></table>
         </div>
       </div>
-      ${soloSummary(c).length ? `<h4>Combat Awareness</h4><div>${esc(soloSummary(c).join(' · '))}</div>` : ''}
+      ${roleLines(c).map(([k, v]) => `<h4>${esc(k)}</h4><div>${esc(v)}</div>`).join('')}
       ${lp.length ? `<h4>Lifepath</h4><table>${lp.map(([k, l]) => `<tr><td style="width:35%">${esc(l)}</td><td>${esc(c.lifepath[k])}</td></tr>`).join('')}</table>` : ''}
       ${c.notes ? `<h4>Notes</h4><div style="white-space:pre-wrap">${esc(c.notes)}</div>` : ''}
       <div class="legal-line">Made with Red Companion. Red Companion is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.</div>
@@ -1273,7 +1399,7 @@ CPR.characters = (function () {
   function sheetText(c, d) {
     const L = [];
     L.push(`${c.handle || 'Unnamed'}${c.name ? ' (' + c.name + ')' : ''} — ${d.role.name}, ${d.role.ability} ${c.roleRank}`);
-    if (soloSummary(c).length) L.push(`Combat Awareness: ${soloSummary(c).join(', ')}`);
+    roleLines(c).forEach(([k, v]) => L.push(`${k}: ${v}`));
     L.push(D.STATS.map(s => `${s.id} ${s.id === 'EMP' ? d.empCur + '/' + c.stats.EMP : c.stats[s.id]}`).join('  '));
     L.push(`HP ${d.hp}/${d.hpMax} | Seriously Wounded ${d.seriously} | Death Save ${d.deathSave} | Humanity ${d.humanity}/${d.humanityMax}${d.tempHumanity ? ` (incl. -${d.tempHumanity} temporary)` : ''}`);
     L.push(`Armor: Head ${c.armor.head.name} SP${c.armor.head.spCurrent} | Body ${c.armor.body.name} SP${c.armor.body.spCurrent}`);
@@ -1354,6 +1480,7 @@ CPR.characters = (function () {
     const t = e.target;
     if (!current) return;
     if (t.dataset.bind) return onInput(e);
+    if (t.id === 'maker-skill') { S.write('ui.makerSkill', t.value); return renderTab(); }
 
     if (t.dataset.cwFound) {
       setFoundation(current, t.dataset.cwFound, t.value || null);
@@ -1500,16 +1627,21 @@ CPR.characters = (function () {
       case 'add-gear': c.gear.push({ name: '', qty: 1, notes: '' }); saveNow(); renderTab(); break;
       case 'del-gear': c.gear.splice(+b.dataset.i, 1); saveNow(); renderTab(); break;
       case 'ca-inc': case 'ca-dec': {
-        const a = D.SOLO_ABILITIES.find(x => x.id === b.dataset.ca), so = soloOf(c);
-        if (!a || !so) break;
-        const v = so.lv[a.id] + (b.dataset.a === 'ca-inc' ? 1 : -1);
-        if (v < 0 || v > a.max) break;
-        if (b.dataset.a === 'ca-inc' && so.spent + a.cost > so.points) { U.toast(`Not enough points: ${a.name} costs ${a.cost}`); break; }
-        c.soloCA = { ...c.soloCA, [a.id]: v };
-        if (!v) delete c.soloCA[a.id];
+        const al = allocOf(c, b.dataset.role || c.role), a = al && al.cfg.specs.find(x => x.id === b.dataset.ca);
+        if (!a) break;
+        const v = al.lv[a.id] + (b.dataset.a === 'ca-inc' ? 1 : -1);
+        if (v < 0 || v > specMax(al, a)) break;
+        if (b.dataset.a === 'ca-inc' && al.spent + (a.cost || 1) > al.points) { U.toast(`Not enough points: ${a.name} costs ${a.cost || 1}`); break; }
+        const lv = { ...allocRaw(c, al.role), [a.id]: v };
+        if (!v) delete lv[a.id];
+        allocSet(c, al.role, lv);
         saveNow(); renderTab(); break;
       }
-      case 'ca-reset': c.soloCA = {}; saveNow(); renderTab(); break;
+      case 'ca-reset': allocSet(c, b.dataset.role || c.role, {}); saveNow(); renderTab(); break;
+      case 'pool-add': c.nomadPool.push({ kind: b.dataset.kind === 'upgrade' ? 'upgrade' : 'vehicle', name: '', notes: '' }); saveNow(); renderTab(); break;
+      case 'pool-del': c.nomadPool.splice(+b.dataset.i, 1); saveNow(); renderTab(); break;
+      case 'team-add': c.execTeam.push({ name: '', job: '', loyalty: 0, notes: '' }); saveNow(); renderTab(); break;
+      case 'team-del': c.execTeam.splice(+b.dataset.i, 1); saveNow(); renderTab(); break;
       case 'tt-pay': {
         const t = traumaTeamOf(c);
         if (!t) break;
