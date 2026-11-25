@@ -71,6 +71,7 @@ CPR.roller = (function () {
     build();
     let r;
     if (o.plain) { const n = U.d(10); r = { total: n, rolls: [n] }; } else r = U.rollD10Check();
+    if (o.noFumble && r.fumble) { r = { total: 1, rolls: [1] }; o = { ...o, note: [`${o.noFumble}: natural 1 ignored`, o.note].filter(Boolean).join(' · ') }; }
     const parts = o.parts.filter((p, i) => i === 0 || p.v !== 0);
     if (mod && !o.noMod) parts.push({ label: 'situational', v: mod });
     const base = parts.reduce((a, p) => a + p.v, 0);

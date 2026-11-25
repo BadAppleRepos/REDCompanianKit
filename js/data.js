@@ -657,3 +657,14 @@ CPR.DATA.TRAUMA_TEAM = [
   { id: 'platinum', name: 'Platinum', cost: 2000 },
   { id: 'diamond', name: 'Diamond', cost: 5000 },
 ];
+
+// Solo Role Ability: Combat Awareness. A Solo has points equal to their rank to spread across these.
+// cost = points per level, max = highest level. Reallocate when combat starts, any time outside it, or as an Action in combat.
+CPR.DATA.SOLO_ABILITIES = [
+  { id: 'deflect', name: 'Damage Deflection', cost: 2, max: 5, unit: 'to the first damage each Round', text: 'Reduce the first damage you take each Round by 1 per level (applied alongside armor).' },
+  { id: 'fumble', name: 'Fumble Recovery', cost: 4, max: 1, text: 'Ignore critical failures on your attack rolls: a natural 1 just counts as 1.' },
+  { id: 'init', name: 'Initiative Reaction', cost: 1, max: 10, unit: 'Initiative', text: '+1 to Initiative rolls per level. Doesn\u2019t change an Initiative already rolled.' },
+  { id: 'precision', name: 'Precision Attack', cost: 3, max: 3, unit: 'to attacks', text: '+1 to every attack roll per level.' },
+  { id: 'spot', name: 'Spot Weakness', cost: 1, max: 10, unit: 'damage', text: '+1 damage per level (before armor) to your first successful attack each Round.' },
+  { id: 'threat', name: 'Threat Detection', cost: 1, max: 10, unit: 'Perception', text: '+1 to Perception checks per level.' },
+];

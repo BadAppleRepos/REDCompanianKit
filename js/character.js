@@ -16,7 +16,7 @@ CPR.characters = (function () {
       handle: '', name: '', role: 'solo', roleRank: R.startingRoleRank, age: '', pronouns: '',
       creationMode: 'package',
       stats, skills, customSkills: [],
-      hpCurrent: null, humanityExtra: 0, deathSaveBonus: 0, deathPenalty: 0, quickhacks: [], deck: '', programs: [], tempHumanity: 0, netMods: {},
+      hpCurrent: null, humanityExtra: 0, deathSaveBonus: 0, deathPenalty: 0, quickhacks: [], deck: '', programs: [], tempHumanity: 0, netMods: {}, soloCA: {},
       armor: { head: { name: 'None', sp: 0, spCurrent: 0 }, body: { name: 'None', sp: 0, spCurrent: 0 } },
       weapons: [], gear: [],
       cyber: { zones: {} },
@@ -42,6 +42,10 @@ CPR.characters = (function () {
     ['roleRank', 'money', 'ip', 'reputation', 'humanityExtra', 'deathSaveBonus', 'deathPenalty', 'tempHumanity'].forEach(k => { c[k] = num(c[k]); });
     c.tempHumanity = Math.max(0, c.tempHumanity);
     if (!D.TRAUMA_TEAM.some(t => t.id === c.traumaTeam)) c.traumaTeam = '';
+    // Solo Combat Awareness: known abilities only, whole levels within each ability's max.
+    const ca = obj(c.soloCA), cleanCa = {};
+    D.SOLO_ABILITIES.forEach(a => { const v = Math.max(0, Math.min(a.max, Math.floor(num(ca[a.id])))); if (v) cleanCa[a.id] = v; });
+    c.soloCA = cleanCa;
     // Per-roll modifiers (Jack In, Force Out, each quickhack): plain keys, numeric values only.
     const nm = obj(c.netMods), cleanMods = {};
     Object.keys(nm).forEach(k => { if (/^[A-Za-z0-9_-]{1,64}$/.test(k) && num(nm[k])) cleanMods[k] = num(nm[k]); });
@@ -190,6 +194,13 @@ CPR.characters = (function () {
       Object.entries(m.stats || {}).forEach(([k, v]) => v && (mods.statParts[k] = mods.statParts[k] || []).push({ label, v }));
       Object.entries(m.skills || {}).forEach(([k, v]) => v && (mods.skillParts[k] = mods.skillParts[k] || []).push({ label, v }));
     });
+    // Solo Combat Awareness points (only while the Role is Solo).
+    const solo = soloOf(c);
+    if (solo) {
+      if (solo.spent > solo.points) warnings.push(`Combat Awareness: ${solo.spent}/${solo.points} points spent`);
+      if (solo.lv.init) mods.initParts.push({ label: 'Initiative Reaction', v: solo.lv.init });
+      if (solo.lv.threat) (mods.skillParts.Perception = mods.skillParts.Perception || []).push({ label: 'Threat Detection', v: solo.lv.threat });
+    }
     const initBonus = mods.initParts.reduce((a, p) => a + p.v, 0);
 
     // Cyberware that sets BODY for Choke, Slam and strength feats (Gorilla Arms): highest one wins.
@@ -210,9 +221,48 @@ CPR.characters = (function () {
     return {
       hpMax, hp, seriously: Math.ceil(hpMax / 2), deathSave: (st.BODY || 0) + (Number(c.deathSaveBonus) || 0),
       humanityMax, humanity, empCur, hlCyber, cyberCost, statTotal, skillTotal, warnings, cyber, skinSp, role, mods, initBonus,
-      brawlBody, brawlBodySource, fullPairs, tempHumanity,
+      brawlBody, brawlBodySource, fullPairs, tempHumanity, solo,
       walk: st.MOVE * 2, run: st.MOVE * 6,
     };
+  }
+
+  // Combat Awareness levels for a Solo, or null for other Roles.
+  function soloOf(c) {
+    if (c.role !== 'solo') return null;
+    const lv = {};
+    let spent = 0;
+    D.SOLO_ABILITIES.forEach(a => { lv[a.id] = Number((c.soloCA || {})[a.id]) || 0; spent += lv[a.id] * a.cost; });
+    return { lv, spent, points: Math.max(0, Number(c.roleRank) || 0) };
+  }
+
+  // Point-allocation panel for Combat Awareness (Identity and Play tabs).
+  function soloPanel(c, compact) {
+    const so = soloOf(c);
+    if (!so) return '';
+    const left = so.points - so.spent;
+    return `<div class="panel solo-ca${compact ? ' compact' : ''}">
+      <div class="row"><h3 style="margin:0">Combat Awareness</h3><span class="spacer"></span>
+        <span class="ca-pts ${left < 0 ? 'over' : left === 0 ? 'done' : ''}"><b>${so.spent}</b> / ${so.points} points${left > 0 ? ` · ${left} left` : left < 0 ? ` · ${-left} over` : ''}</span>
+        <button class="btn sm ghost" data-a="ca-reset" title="Take every point back">Reset</button></div>
+      <p class="muted small" style="margin:6px 0 8px">Points equal your Combat Awareness rank. Reallocate when combat starts, any time outside combat, or as an Action during it.</p>
+      <div class="ca-list">${D.SOLO_ABILITIES.map(a => {
+        const v = so.lv[a.id], canAdd = v < a.max && a.cost <= so.points - so.spent;
+        return `<div class="ca-row ${v ? 'on' : ''}">
+          <div class="ca-text"><b>${esc(a.name)}</b><small>${a.cost} pt${a.cost > 1 ? 's' : ''} per level · max ${a.max}${compact ? '' : ` — ${esc(a.text)}`}</small></div>
+          <div class="ca-ctl">
+            <button class="btn icon sm" data-a="ca-dec" data-ca="${a.id}" ${v ? '' : 'disabled'} aria-label="Lower ${esc(a.name)}">−</button>
+            <b class="ca-lv">${a.max === 1 ? (v ? 'ON' : 'OFF') : v}</b>
+            <button class="btn icon sm" data-a="ca-inc" data-ca="${a.id}" ${canAdd ? '' : 'disabled'} aria-label="Raise ${esc(a.name)}">+</button>
+          </div></div>`;
+      }).join('')}</div>
+    </div>`;
+  }
+
+  // One-line summary of the active Combat Awareness effects.
+  function soloSummary(c) {
+    const so = soloOf(c);
+    if (!so) return [];
+    return D.SOLO_ABILITIES.filter(a => so.lv[a.id]).map(a => a.max === 1 ? a.name : `${a.name} ${a.id === 'deflect' ? '−' : '+'}${so.lv[a.id]}${a.unit ? ' ' + a.unit : ''}`);
   }
 
   function statFor(c, d, stat) { return stat === 'EMP' ? d.empCur : (c.stats[stat] || 0); }
@@ -623,6 +673,7 @@ CPR.characters = (function () {
         <div class="pv"><small>HUMANITY</small><b>${d.humanity}</b><span>EMP ${d.empCur} · Run ${d.walk}m/turn${d.tempHumanity ? ` · −${d.tempHumanity} temporary` : ''}</span></div>
       </div>
       ${pens.length ? `<div class="play-pen">⚠ Applied to rolls: ${pens.map(p => esc(p.v ? `${p.label} ${signed(p.v)}` : p.label)).join(' · ')}</div>` : ''}
+      ${c.role === 'solo' ? `<details class="solo-play" ${S.read('ui.caOpen', false) ? 'open' : ''}><summary><b>Combat Awareness</b> ${d.solo.spent}/${d.solo.points} pts${soloSummary(c).length ? ' · ' + esc(soloSummary(c).join(' · ')) : ' · no points spent'}</summary>${soloPanel(c, true)}</details>` : ''}
 
       <div class="play-stats">
         ${D.STATS.map(s => {
@@ -694,6 +745,14 @@ CPR.characters = (function () {
     </div>`;
   }
 
+  // Combat Awareness pieces for attack rolls (Precision Attack, Fumble Recovery) and damage (Spot Weakness).
+  function soloAtk(d) {
+    const so = d.solo;
+    if (!so) return { parts: [], opts: {} };
+    return { parts: so.lv.precision ? [{ label: 'Precision Attack', v: so.lv.precision }] : [], opts: so.lv.fumble ? { noFumble: 'Fumble Recovery' } : {} };
+  }
+  const soloSpot = d => (d.solo && d.solo.lv.spot ? `Spot Weakness: +${d.solo.lv.spot} damage if this is your first hit this Round` : '');
+
   function doRoll(spec) {
     const c = current, d = derive(c);
     const R = CPR.roller;
@@ -727,6 +786,7 @@ CPR.characters = (function () {
       }
       case 'atk': case 'auto': {
         const w = c.weapons[+arg];
+        const ca = soloAtk(d);
         const ranged = !isMelee(w) && Number(w.mag) > 0;
         const need = kind === 'auto' ? 10 : 1;
         w.ammo = Number(w.ammo) || 0;
@@ -735,10 +795,10 @@ CPR.characters = (function () {
         save();
         if (kind === 'auto') {
           const n = autofireN(w);
-          R.check({ ...base, label: `${w.name} — Autofire`, parts: skillParts(c, d, 'Autofire'),
+          R.check({ ...base, ...ca.opts, label: `${w.name} — Autofire`, parts: skillParts(c, d, 'Autofire').concat(ca.parts),
             note: `Used 10 rounds (${w.ammo} loaded, ${w.ammoTotal} total). If you beat the DV: damage 2d6 × the amount you beat it by, max ×${n}.` });
         } else {
-          R.check({ ...base, label: `${w.name} — Attack`, parts: skillParts(c, d, w.skill),
+          R.check({ ...base, ...ca.opts, label: `${w.name} — Attack`, parts: skillParts(c, d, w.skill).concat(ca.parts),
             note: [ranged ? `${w.ammo}/${w.mag} loaded · ${w.ammoTotal} total · ROF ${w.rof}` : `ROF ${w.rof}`, CPR.tableRules.weaponRule(w.wtype)].filter(Boolean).join(' · ') });
         }
         return renderTab();
@@ -747,15 +807,15 @@ CPR.characters = (function () {
         const w = c.weapons[+arg];
         const ed = effDmg(w);
         return R.damage({ ...base, label: `${w.name} — Damage`, dice: ed.dice, bonus: ed.bonus,
-          note: [ed.over ? `Override (base ${w.damage})` : '', isMelee(w) ? 'Melee: target armor counts at half SP' : 'Head hits: double damage after armor', CPR.tableRules.weaponRule(w.wtype)].filter(Boolean).join(' · ') });
+          note: [ed.over ? `Override (base ${w.damage})` : '', soloSpot(d), isMelee(w) ? 'Melee: target armor counts at half SP' : 'Head hits: double damage after armor', CPR.tableRules.weaponRule(w.wtype)].filter(Boolean).join(' · ') });
       }
       case 'cwatk': case 'cwdmg': {
         const x = cyberWeaponsOf(d)[+arg];
         if (!x) return;
         const rule = CPR.tableRules.weaponRule(x.w.wtype);
-        if (kind === 'cwatk') return R.check({ ...base, label: `${x.info.name} — Attack`, parts: skillParts(c, d, x.w.skill), note: [`ROF ${x.w.rof}`, rule].filter(Boolean).join(' · ') });
+        if (kind === 'cwatk') return R.check({ ...base, ...soloAtk(d).opts, label: `${x.info.name} — Attack`, parts: skillParts(c, d, x.w.skill).concat(soloAtk(d).parts), note: [`ROF ${x.w.rof}`, rule].filter(Boolean).join(' · ') });
         return R.damage({ ...base, label: `${x.info.name} — Damage`, dice: x.w.damage,
-          note: [isMelee({ skill: x.w.skill }) ? 'Melee: target armor counts at half SP' : '', rule].filter(Boolean).join(' · ') });
+          note: [soloSpot(d), isMelee({ skill: x.w.skill }) ? 'Melee: target armor counts at half SP' : '', rule].filter(Boolean).join(' · ') });
       }
       case 'iface': {
         const a = D.INTERFACE_ABILITIES.find(x => x.id === arg);
@@ -821,10 +881,11 @@ CPR.characters = (function () {
         <h3>Role</h3>
         <div class="grid cols-2">
           <label class="field">Role<select data-bind="role" data-rerender="1">${D.ROLES.map(r => `<option value="${r.id}" ${r.id === c.role ? 'selected' : ''}>${r.name}</option>`).join('')}</select></label>
-          <label class="field">${esc(d.role.ability)} Rank<input type="number" min="1" max="10" data-bind="roleRank" value="${c.roleRank}"></label>
+          <label class="field">${esc(d.role.ability)} Rank<input type="number" min="1" max="10" data-bind="roleRank" data-rerender="1" value="${c.roleRank}"></label>
         </div>
         <p class="muted small" style="margin:8px 0 0"><b style="color:var(--yellow)">${esc(d.role.ability)}</b> — ${esc(d.role.desc)}</p>
       </div>
+      ${c.role === 'solo' ? `<div style="grid-column:1/-1">${soloPanel(c, false)}</div>` : ''}
       <div class="panel">
         <h3>Creation Rules</h3>
         <label class="field">Method<select data-bind="creationMode" data-rerender="1">
@@ -1196,6 +1257,7 @@ CPR.characters = (function () {
           <table><tr><td>Eurobucks</td><td>${Number(c.money).toLocaleString()}eb</td></tr><tr><td>Gear & chrome value</td><td>${gearValue(c, d).toLocaleString()}eb</td></tr><tr><td>IP</td><td>${c.ip}</td></tr><tr><td>Reputation</td><td>${c.reputation}</td></tr><tr><td>Trauma Team</td><td>${esc(traumaTeamLabel(c))}</td></tr></table>
         </div>
       </div>
+      ${soloSummary(c).length ? `<h4>Combat Awareness</h4><div>${esc(soloSummary(c).join(' · '))}</div>` : ''}
       ${lp.length ? `<h4>Lifepath</h4><table>${lp.map(([k, l]) => `<tr><td style="width:35%">${esc(l)}</td><td>${esc(c.lifepath[k])}</td></tr>`).join('')}</table>` : ''}
       ${c.notes ? `<h4>Notes</h4><div style="white-space:pre-wrap">${esc(c.notes)}</div>` : ''}
       <div class="legal-line">Made with Red Companion. Red Companion is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.</div>
@@ -1211,6 +1273,7 @@ CPR.characters = (function () {
   function sheetText(c, d) {
     const L = [];
     L.push(`${c.handle || 'Unnamed'}${c.name ? ' (' + c.name + ')' : ''} — ${d.role.name}, ${d.role.ability} ${c.roleRank}`);
+    if (soloSummary(c).length) L.push(`Combat Awareness: ${soloSummary(c).join(', ')}`);
     L.push(D.STATS.map(s => `${s.id} ${s.id === 'EMP' ? d.empCur + '/' + c.stats.EMP : c.stats[s.id]}`).join('  '));
     L.push(`HP ${d.hp}/${d.hpMax} | Seriously Wounded ${d.seriously} | Death Save ${d.deathSave} | Humanity ${d.humanity}/${d.humanityMax}${d.tempHumanity ? ` (incl. -${d.tempHumanity} temporary)` : ''}`);
     L.push(`Armor: Head ${c.armor.head.name} SP${c.armor.head.spCurrent} | Body ${c.armor.body.name} SP${c.armor.body.spCurrent}`);
@@ -1352,6 +1415,9 @@ CPR.characters = (function () {
     const rollEl = e.target.closest('[data-roll]');
     if (rollEl && current) { saveNow(); return doRoll(rollEl.dataset.roll); }
 
+    const caSum = e.target.closest('.solo-play > summary');
+    if (caSum) { S.write('ui.caOpen', !caSum.parentElement.open); return; }
+
     if (current && CPR.ripperdoc.onClick(e)) return;
 
     const b = e.target.closest('[data-a]');
@@ -1433,6 +1499,17 @@ CPR.characters = (function () {
       case 'del-weapon': c.weapons.splice(+b.dataset.i, 1); saveNow(); renderTab(); break;
       case 'add-gear': c.gear.push({ name: '', qty: 1, notes: '' }); saveNow(); renderTab(); break;
       case 'del-gear': c.gear.splice(+b.dataset.i, 1); saveNow(); renderTab(); break;
+      case 'ca-inc': case 'ca-dec': {
+        const a = D.SOLO_ABILITIES.find(x => x.id === b.dataset.ca), so = soloOf(c);
+        if (!a || !so) break;
+        const v = so.lv[a.id] + (b.dataset.a === 'ca-inc' ? 1 : -1);
+        if (v < 0 || v > a.max) break;
+        if (b.dataset.a === 'ca-inc' && so.spent + a.cost > so.points) { U.toast(`Not enough points: ${a.name} costs ${a.cost}`); break; }
+        c.soloCA = { ...c.soloCA, [a.id]: v };
+        if (!v) delete c.soloCA[a.id];
+        saveNow(); renderTab(); break;
+      }
+      case 'ca-reset': c.soloCA = {}; saveNow(); renderTab(); break;
       case 'tt-pay': {
         const t = traumaTeamOf(c);
         if (!t) break;

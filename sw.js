@@ -1,5 +1,5 @@
 /* Service worker: caches the app so it works offline once installed. Bump VERSION when files change. */
-const VERSION = 'redcompanion-v21';
+const VERSION = 'redcompanion-v22';
 const FILES = [
   './', './index.html', './manifest.webmanifest', './css/styles.css',
   './js/data.js', './js/store.js', './js/ui.js', './js/roller.js', './js/homebrew.js', './js/character.js', './js/ripperdoc.js', './js/combat.js',
